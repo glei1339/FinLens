@@ -3,13 +3,12 @@ import { Upload, Sparkles, FileText, AlertTriangle, X } from 'lucide-react'
 import UploadZone from './components/UploadZone'
 import SummaryCards from './components/SummaryCards'
 import SpendingChart from './components/SpendingChart'
-import CategoryFilter from './components/CategoryFilter'
 import YearFilter from './components/YearFilter'
-import TransactionTable from './components/TransactionTable'
-import SpendingBreakdownPage from './components/SpendingBreakdownPage'
+import SpendingBreakdownSection from './components/SpendingBreakdownSection'
+import TransactionsPage from './components/TransactionsPage'
 import FilesPage from './components/FilesPage'
 import RulesPage from './components/RulesPage'
-import { getYearFromDate } from './utils/dateHelpers'
+import { getYearFromDate, getUniqueYears, getYearMonthFromDate } from './utils/dateHelpers'
 import ProfileBar from './components/ProfileBar'
 import { parseCSV } from './utils/csvParser'
 import { parsePDF } from './utils/pdfParser'
@@ -81,9 +80,10 @@ export default function App() {
   const [loading,        setLoading]        = useState(false)
   const [loadingFile,    setLoadingFile]    = useState('')
   const [error,          setError]          = useState(null)
-  const [activeCategory, setActiveCategory]   = useState(null)
-  const [activeYear,     setActiveYear]       = useState(null)
-  const [view,           setView]             = useState('dashboard') // 'dashboard' | 'breakdown' | 'files' | 'rules'
+  const [activeCategory, setActiveCategory] = useState(null)
+  const [activeYear,     setActiveYear]     = useState(null)
+  const [activeMonth,    setActiveMonth]    = useState(null) // 1–12 or null
+  const [view,           setView]           = useState('dashboard') // 'dashboard' | 'transactions' | 'files' | 'rules'
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [ruleModalOpen,   setRuleModalOpen]   = useState(false)
   const [ruleModalDraft,  setRuleModalDraft]  = useState(null)
@@ -110,6 +110,28 @@ export default function App() {
       ? transactions
       : transactions.filter((t) => getYearFromDate(t.date) === activeYear)
 
+  // Further filter for the Transactions page: optional month filter on top of year filter.
+  const filteredForTransactions = !filteredByYear
+    ? null
+    : activeMonth == null
+      ? filteredByYear
+      : filteredByYear.filter((t) => {
+          const ym = getYearMonthFromDate(t.date)
+          return ym && ym.month === activeMonth
+        })
+
+  // Months available for the current year selection (used in Transactions page month filter).
+  // When viewing \"All years\" (activeYear == null), we hide the month filter entirely.
+  const monthsForFilter = React.useMemo(() => {
+    if (!filteredByYear || activeYear == null) return []
+    const set = new Set()
+    for (const t of filteredByYear) {
+      const ym = getYearMonthFromDate(t.date)
+      if (ym) set.add(ym.month)
+    }
+    return [...set].sort((a, b) => a - b)
+  }, [filteredByYear, activeYear])
+
   // Persist profiles (including transactions) to localStorage
   useEffect(() => {
     localStorage.setItem('finlens-profiles', JSON.stringify(profiles))
@@ -127,6 +149,7 @@ export default function App() {
     setActiveId(p.id)
     setActiveCategory(null)
     setActiveYear(null)
+    setActiveMonth(null)
     setError(null)
   }
 
@@ -134,6 +157,7 @@ export default function App() {
     setActiveId(id)
     setActiveCategory(null)
     setActiveYear(null)
+    setActiveMonth(null)
     setError(null)
   }
 
@@ -170,6 +194,7 @@ export default function App() {
     setLoading(true)
     setError(null)
     setActiveCategory(null)
+    setActiveMonth(null)
 
     const names   = files.map(f => f.name)
     const hasPdf  = files.some(f => /\.pdf$/i.test(f.name))
@@ -213,6 +238,7 @@ export default function App() {
     setLoading(true)
     setError(null)
     setActiveCategory(null)
+    setActiveMonth(null)
 
     const names = files.map(f => f.name)
     const hasPdf = files.some(f => /\.pdf$/i.test(f.name))
@@ -346,6 +372,7 @@ export default function App() {
     setError(null)
     setActiveCategory(null)
     setActiveYear(null)
+    setActiveMonth(null)
   }
 
   const handleRemoveFile = useCallback((fileName) => {
@@ -583,15 +610,15 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => setView('breakdown')}
+              onClick={() => setView('transactions')}
               className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200 hover:bg-white/10"
               style={
-                view === 'breakdown'
+                view === 'transactions'
                   ? { background: 'rgba(129,140,248,0.22)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.7)' }
                   : { background: 'rgba(15,23,42,0.8)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.4)' }
               }
             >
-              Spending by category
+              Transactions
             </button>
             <button
               type="button"
@@ -617,6 +644,23 @@ export default function App() {
         </div>
       </header>
 
+      {/* Year filter bar at top when viewing dashboard or transactions */}
+      {transactions?.length > 0 && getUniqueYears(transactions).length > 1 && (view === 'dashboard' || view === 'transactions') && (
+        <div
+          className="sticky top-[57px] z-10 border-b border-white/5 px-4 sm:px-6 py-3 flex items-center justify-center sm:justify-start"
+          style={{ background: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(12px)' }}
+        >
+          <div className="max-w-7xl w-full">
+            <YearFilter
+              transactions={transactions}
+              activeYear={activeYear}
+              onChange={setActiveYear}
+              compact
+            />
+          </div>
+        </div>
+      )}
+
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {view === 'files' ? (
           <FilesPage
@@ -631,12 +675,20 @@ export default function App() {
             onRemoveFile={handleRemoveFile}
             onBack={() => setView('dashboard')}
           />
-        ) : view === 'breakdown' ? (
-          <SpendingBreakdownPage
-            transactions={transactions}
-            selectedYear={activeYear}
-            onYearChange={setActiveYear}
+        ) : view === 'transactions' ? (
+          <TransactionsPage
+            transactions={filteredForTransactions || []}
+            months={monthsForFilter}
+            activeMonth={activeMonth}
+            activeCategory={activeCategory}
+            onMonthChange={setActiveMonth}
+            onCategoryFilterChange={setActiveCategory}
+            onAddCategory={handleAddCategory}
+            onTransactionCategoryChange={handleCategoryChange}
+            onSubcategoryChange={handleSubcategoryChange}
+            allCategories={allCategories}
             customCategories={customCategories}
+            onAddRuleFromTransaction={handleAddRuleFromTransaction}
             onBack={() => setView('dashboard')}
           />
         ) : view === 'rules' ? (
@@ -663,26 +715,10 @@ export default function App() {
 
         <SummaryCards transactions={filteredByYear} />
         <SpendingChart transactions={filteredByYear} />
-        <YearFilter
-          transactions={transactions}
-          activeYear={activeYear}
-          onChange={setActiveYear}
-        />
-        <CategoryFilter
+        <SpendingBreakdownSection
           transactions={filteredByYear}
-          active={activeCategory}
-          onChange={setActiveCategory}
+          selectedYear={activeYear}
           customCategories={customCategories}
-          onAddCategory={handleAddCategory}
-        />
-        <TransactionTable
-          transactions={filteredByYear}
-          onCategoryChange={handleCategoryChange}
-          onSubcategoryChange={handleSubcategoryChange}
-          activeCategory={activeCategory}
-          categories={allCategories}
-          customCategories={customCategories}
-          onAddRuleFromTransaction={handleAddRuleFromTransaction}
         />
         <p className="text-center text-xs text-slate-700 mt-8">
           FinLens · All data processed locally · Nothing sent to any server
