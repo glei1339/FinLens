@@ -17,6 +17,13 @@ export default function CategoryFilter({ transactions, active, onChange, customC
     counts[c] = (counts[c] || 0) + 1
     totals[c] = (totals[c] || 0) + t.amount
   }
+  // Include custom categories even with 0 transactions so newly added categories show up
+  for (const { name } of customCategories || []) {
+    if (name && counts[name] === undefined) {
+      counts[name] = 0
+      totals[name] = 0
+    }
+  }
 
   const cats = Object.entries(counts)
     .sort((a, b) => Math.abs(totals[b[0]]) - Math.abs(totals[a[0]]))
