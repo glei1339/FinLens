@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, TrendingDown, TrendingUp, Calendar, BarChart3 } from 'lucide-react'
+import { TrendingDown, TrendingUp, Calendar, BarChart3 } from 'lucide-react'
 import { CATEGORY_COLORS } from '../utils/categorizer'
 import { getYearFromDate, getUniqueYears, getYearMonthFromDate } from '../utils/dateHelpers'
 
@@ -40,78 +40,147 @@ function buildCategoryStats(transactions) {
   return { spending, income, totalSpent, totalIncome }
 }
 
-// ── Monthly breakdown: click to expand for full category breakdown (no bar) ─
+// ── Monthly breakdown: all months with category breakdown visible; optional category highlight ─
 function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
-  const [openMonths, setOpenMonths] = useState(new Set())
+  const [highlightCategory, setHighlightCategory] = useState(null)
   const yearTotal = monthlySpending.reduce((s, m) => s + m.amount, 0)
 
-  function toggle(month) {
-    setOpenMonths((prev) => {
-      const next = new Set(prev)
-      if (next.has(month)) next.delete(month)
-      else next.add(month)
-      return next
+  const allCategories = useMemo(() => {
+    const set = new Set()
+    monthlySpending.forEach(({ byCategory }) => {
+      Object.keys(byCategory || {}).forEach((cat) => set.add(cat))
     })
-  }
+    return [...set].sort()
+  }, [monthlySpending])
 
   return (
     <div className="card overflow-hidden mb-6">
-      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--separator)' }}>
-        <h3 className="card-title flex items-center gap-2 text-lg">
-          <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
-          Month by month
-        </h3>
-        <p className="card-subtitle mt-1">
-          {selectedYear} · {fmt(-yearTotal)} total · click a month for full breakdown
-        </p>
+      <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--separator)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-light)' }}>
+            <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+          </div>
+          <div>
+            <h3 className="dashboard-card-title">Month by month</h3>
+            <p className="card-subtitle mt-0.5">
+              {selectedYear} · {fmt(-yearTotal)} total
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="divide-y" style={{ borderColor: 'var(--separator)' }}>
+      {allCategories.length > 0 && (
+        <div className="px-6 py-3 border-b" style={{ borderColor: 'var(--separator)', background: 'var(--bg-subtle)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+            Compare category
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setHighlightCategory(null)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                highlightCategory == null ? 'text-white' : ''
+              }`}
+              style={
+                highlightCategory == null
+                  ? { background: 'var(--accent)' }
+                  : { color: 'var(--text-secondary)', background: 'var(--bg-card)', border: '1px solid var(--border)' }
+              }
+            >
+              All
+            </button>
+            {allCategories.map((cat) => {
+              const isActive = highlightCategory === cat
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setHighlightCategory(isActive ? null : cat)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                  style={
+                    isActive
+                      ? { background: getColor(cat), color: '#fff', border: '1px solid transparent' }
+                      : { color: 'var(--text-secondary)', background: 'var(--bg-card)', border: `1px solid var(--border)` }
+                  }
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: isActive ? 'rgba(255,255,255,0.8)' : getColor(cat) }} />
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
         {monthlySpending.map(({ month, label, amount, byCategory }) => {
-          const isOpen = openMonths.has(month)
           const cats = Object.entries(byCategory || {}).sort((a, b) => b[1].amount - a[1].amount)
 
           return (
-            <div key={month}>
-              <button
-                type="button"
-                onClick={() => toggle(month)}
-                className="w-full px-6 py-4 flex items-center justify-between gap-4 text-left hover:bg-[var(--border-subtle)]/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
+            <div
+              key={month}
+              className="rounded-2xl overflow-hidden border transition-shadow hover:shadow-md"
+              style={{ borderColor: 'var(--border)', background: 'var(--bg-card)', boxShadow: 'var(--shadow-sm)' }}
+            >
+              <div
+                className="px-5 py-4 flex items-center justify-between gap-4"
+                style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--separator)' }}
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{label}</span>
-                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{selectedYear}</span>
-                  {cats.length > 0 && (
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {cats.length} categor{cats.length !== 1 ? 'ies' : 'y'}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold font-mono num tabular-nums" style={{ color: 'var(--danger)' }}>
-                    {fmt(-amount)}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-lg font-semibold font-display tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                    {label}
                   </span>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                  </span>
+                  <span className="text-sm shrink-0" style={{ color: 'var(--text-muted)' }}>{selectedYear}</span>
                 </div>
-              </button>
+                <span className="text-lg font-bold font-mono num tabular-nums shrink-0" style={{ color: 'var(--danger)' }}>
+                  {fmt(-amount)}
+                </span>
+              </div>
 
-              {isOpen && cats.length > 0 && (
-                <div className="px-6 pb-4 pt-0">
-                  <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                    <div className="divide-y" style={{ borderColor: 'var(--separator)' }}>
-                      {cats.map(([catName, { amount: catAmt }]) => (
-                          <div key={catName} className="flex items-center justify-between gap-4 px-4 py-3">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: getColor(catName) }} />
-                              <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{catName}</span>
-                            </div>
-                            <span className="text-sm font-semibold font-mono num flex-shrink-0" style={{ color: 'var(--danger)' }}>{fmt(-catAmt)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
+              {cats.length > 0 ? (
+                <div className="divide-y" style={{ borderColor: 'var(--separator)' }}>
+                  {cats.map(([catName, { amount: catAmt }]) => {
+                    const isHighlighted = highlightCategory != null && catName === highlightCategory
+                    return (
+                      <div
+                        key={catName}
+                        className={`flex items-center justify-between gap-4 px-5 py-2.5 transition-colors ${
+                          isHighlighted ? 'ring-inset ring-2' : 'hover:bg-[var(--bg-subtle)]/50'
+                        }`}
+                        style={
+                          isHighlighted
+                            ? {
+                                background: 'var(--accent-light)',
+                                boxShadow: 'inset 0 0 0 2px var(--accent)',
+                              }
+                            : undefined
+                        }
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: getColor(catName) }}
+                          />
+                          <span
+                            className={`text-sm truncate ${isHighlighted ? 'font-semibold' : 'font-medium'}`}
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {catName}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-sm font-mono num tabular-nums shrink-0 ${isHighlighted ? 'font-bold' : 'font-semibold'}`}
+                          style={{ color: 'var(--danger)' }}
+                        >
+                          {fmt(-catAmt)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="px-5 py-6 text-center">
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No spending this month</p>
                 </div>
               )}
             </div>
