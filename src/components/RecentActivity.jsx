@@ -61,14 +61,32 @@ export default function RecentActivity({ transactions, excludedCategories, onVie
       .slice(0, 8)
   }, [expenses])
 
-  if (!recent.length) return null
+  if (!recent.length) {
+    return (
+      <div className="card overflow-hidden h-full flex flex-col">
+        <div className="card-header flex-shrink-0 px-6 py-4">
+          <h2 className="dashboard-card-title flex items-center gap-2">
+            <TrendingDown className="w-5 h-5 shrink-0" style={{ color: 'var(--danger)' }} />
+            Recent expenses
+          </h2>
+          <p className="card-subtitle mt-0.5">Latest spending</p>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No recent expenses.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="card overflow-hidden animate-fade-up h-full flex flex-col min-h-0">
       <div className="card-header flex-shrink-0 px-6 py-4">
         <div>
-          <h2 className="card-title text-lg">Recent expenses</h2>
-          <p className="card-subtitle">Latest spending</p>
+          <h2 className="dashboard-card-title flex items-center gap-2">
+            <TrendingDown className="w-5 h-5 shrink-0" style={{ color: 'var(--danger)' }} />
+            Recent expenses
+          </h2>
+          <p className="card-subtitle mt-0.5">Latest spending</p>
         </div>
         {onViewAll && (
           <button
@@ -87,27 +105,27 @@ export default function RecentActivity({ transactions, excludedCategories, onVie
         {recent.map((t) => (
           <div
             key={t.id}
-            className="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--border-subtle)]/80 transition-colors"
+            className="flex items-center gap-4 px-6 py-3.5 hover:bg-[var(--border-subtle)]/80 transition-colors"
           >
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: 'var(--danger-light)' }}
             >
-              <TrendingDown className="w-5 h-5" style={{ color: 'var(--danger)' }} strokeWidth={2} />
+              <TrendingDown className="w-4 h-4" style={{ color: 'var(--danger)' }} strokeWidth={2} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }} title={t.description}>
                 {t.description}
               </p>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-0.5">
                 {t.category && <CategoryDot category={t.category} />}
-                <p className="text-xs truncate font-medium" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
                   {t.category || 'Uncategorized'}
                   {t.date && <span> · {relativeDate(t.date)}</span>}
                 </p>
               </div>
             </div>
-            <p className="text-sm font-bold num flex-shrink-0" style={{ color: 'var(--danger)' }}>
+            <p className="text-sm font-semibold num flex-shrink-0 tabular-nums" style={{ color: 'var(--danger)' }}>
               −{fmt(t.amount)}
             </p>
           </div>
@@ -115,11 +133,11 @@ export default function RecentActivity({ transactions, excludedCategories, onVie
       </div>
 
       {onViewAll && (
-        <div className="px-5 py-3.5 border-t flex-shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="px-6 py-3.5 border-t flex-shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
           <button
             type="button"
             onClick={onViewAll}
-            className="w-full text-sm font-semibold text-center transition-colors rounded-xl py-2 hover:bg-[var(--border-subtle)]"
+            className="w-full text-sm font-semibold text-center transition-colors rounded-xl py-2.5 hover:bg-[var(--border-subtle)]"
             style={{ color: 'var(--text-secondary)' }}
           >
             View all {expenses.length} expenses →

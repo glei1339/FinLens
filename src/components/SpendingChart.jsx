@@ -27,6 +27,29 @@ function buildCategoryData(transactions) {
     .sort((a, b) => b.value - a.value)
 }
 
+/** Build category data with total and avgPerMonth (avg spend per month for that category). */
+function buildCategoryDataWithAvg(transactions, activeYear) {
+  const byCat = {}
+  const monthsByCat = {}
+  for (const t of transactions) {
+    if (t.amount >= 0) continue
+    const cat = t.category || 'Uncategorized'
+    const ym = getYearMonthFromDate(t.date)
+    if (!ym) continue
+    if (activeYear != null && ym.year !== activeYear) continue
+    byCat[cat] = (byCat[cat] || 0) + Math.abs(t.amount)
+    if (!monthsByCat[cat]) monthsByCat[cat] = new Set()
+    monthsByCat[cat].add(`${ym.year}-${ym.month}`)
+  }
+  return Object.entries(byCat)
+    .map(([name, value]) => {
+      const months = (monthsByCat[name] || new Set()).size
+      const avgPerMonth = months ? Math.round((value / months) * 100) / 100 : 0
+      return { name, value: Math.round(value * 100) / 100, avgPerMonth, months }
+    })
+    .sort((a, b) => b.value - a.value)
+}
+
 function buildMonthlyData(transactions, activeYear) {
   const years = getUniqueYears(transactions)
   if (activeYear != null) {
@@ -62,7 +85,7 @@ function buildMonthlyData(transactions, activeYear) {
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
-  const { name, value } = payload[0].payload
+  const { name, value, avgPerMonth } = payload[0].payload
   const color = CATEGORY_COLORS[name] || '#94a3b8'
   return (
     <div className="rounded-xl px-4 py-3 text-sm shadow-finlens border bg-[var(--bg-card)]" style={{ borderColor: 'var(--border)' }}>
@@ -70,17 +93,26 @@ const CustomTooltip = ({ active, payload }) => {
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
         <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{name}</p>
       </div>
-      <p className="font-mono num" style={{ color: 'var(--text-secondary)' }}>{fmt(value)}</p>
+      <p className="font-mono num" style={{ color: 'var(--text-secondary)' }}>{fmt(value)} total</p>
+      {avgPerMonth != null && avgPerMonth > 0 && (
+        <p className="font-mono num text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(avgPerMonth)}/mo avg</p>
+      )}
     </div>
   )
 }
 
-const CustomBarTooltip = ({ active, payload, label }) => {
+const CustomBarTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  const total = p.value
+  const avgPerMonth = p.avgPerMonth
   return (
     <div className="rounded-xl px-4 py-3 text-sm shadow-finlens border bg-[var(--bg-card)]" style={{ borderColor: 'var(--border)' }}>
-      <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{label}</p>
-      <p className="font-mono num font-bold" style={{ color: 'var(--danger)' }}>{fmt(payload[0].value)}</p>
+      <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+      <p className="font-mono num font-bold" style={{ color: 'var(--danger)' }}>{fmt(total)} total</p>
+      {avgPerMonth != null && avgPerMonth > 0 && (
+        <p className="font-mono num text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(avgPerMonth)}/mo avg</p>
+      )}
     </div>
   )
 }
@@ -99,10 +131,25 @@ function PieCenterLabel({ cx, cy, total }) {
   )
 }
 
-export default function SpendingChart({ transactions, activeYear }) {
+export default function SpendingChart({ transactions, activeYear, excludedCategories = [] }) {
   const [view, setView] = useState('trend')
-  const categoryData = useMemo(() => buildCategoryData(transactions), [transactions])
-  const monthlyData  = useMemo(() => buildMonthlyData(transactions, activeYear ?? null), [transactions, activeYear])
+  const excludedSet = useMemo(
+    () => new Set((excludedCategories || []).map((c) => (c || '').trim())),
+    [excludedCategories]
+  )
+  const expenseOnly = useMemo(() => {
+    if (!transactions?.length) return []
+    return transactions.filter((t) => {
+      if (t.amount >= 0) return false
+      const cat = (t.category || 'Uncategorized').trim()
+      return !excludedSet.has(cat)
+    })
+  }, [transactions, excludedSet])
+  const categoryData = useMemo(
+    () => buildCategoryDataWithAvg(expenseOnly, activeYear ?? null),
+    [expenseOnly, activeYear]
+  )
+  const monthlyData  = useMemo(() => buildMonthlyData(expenseOnly, activeYear ?? null), [expenseOnly, activeYear])
 
   if (categoryData.length === 0 && monthlyData.length === 0) return null
 
@@ -118,7 +165,7 @@ export default function SpendingChart({ transactions, activeYear }) {
 
   return (
     <div className="card p-6 animate-fade-up h-full flex flex-col min-h-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 flex-shrink-0">
         <div>
           <h2 className="card-title text-lg">Spending overview</h2>
           <p className="card-subtitle mt-0.5">
@@ -158,7 +205,7 @@ export default function SpendingChart({ transactions, activeYear }) {
             </div>
           ) : (
             <>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={340}>
                 <AreaChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
@@ -252,6 +299,7 @@ export default function SpendingChart({ transactions, activeYear }) {
             {top.map((d) => {
               const pct   = total > 0 ? ((d.value / total) * 100).toFixed(1) : 0
               const color = CATEGORY_COLORS[d.name] || '#9ca3af'
+              const avgPerMonth = d.avgPerMonth ?? 0
               return (
                 <div key={d.name} className="flex items-center gap-3">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -266,6 +314,9 @@ export default function SpendingChart({ transactions, activeYear }) {
                         style={{ width: `${pct}%`, background: color }}
                       />
                     </div>
+                    {avgPerMonth > 0 && (
+                      <p className="text-xs font-mono num mt-0.5" style={{ color: 'var(--text-muted)' }}>{fmt(avgPerMonth)}/mo avg</p>
+                    )}
                   </div>
                   <span className="text-sm font-mono font-semibold w-20 text-right num" style={{ color: 'var(--text-primary)' }}>{fmt(d.value)}</span>
                 </div>
@@ -278,7 +329,7 @@ export default function SpendingChart({ transactions, activeYear }) {
       {/* ── Bar view ─────────────────────────────────────────── */}
       {view === 'bar' && (
         <div className="flex-1 min-h-0 flex items-start">
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={400}>
           <BarChart data={top} margin={{ top: 4, right: 8, left: 0, bottom: 64 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
             <XAxis

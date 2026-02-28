@@ -969,7 +969,7 @@ export default function App() {
           </div>
         </header>
 
-      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-5 sm:px-8 py-8 sm:py-10">
         {/* Year filter: inside content when multiple years and on Dashboard or Transactions */}
         {transactions?.length > 0 && getUniqueYears(transactions).length > 1 && (view === 'dashboard' || view === 'transactions') && (
           <div className="mb-6">
@@ -1046,26 +1046,33 @@ export default function App() {
         </div>
         <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
 
-        {/* Two-column: Spending Overview + Recent Activity (same height) */}
-        <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-[520px] gap-4 mb-6">
-          <div className="md:col-span-3 md:h-full min-h-0 flex flex-col">
-            <SpendingChart transactions={filteredByYear} activeYear={activeYear} />
-          </div>
-          <div className="md:col-span-2 md:h-full min-h-0 flex flex-col">
+        {/* Spending overview — full width, respects exclude category filter */}
+        <div className="mb-6">
+          <SpendingChart
+            transactions={filteredByYear}
+            activeYear={activeYear}
+            excludedCategories={excludedCategories}
+          />
+        </div>
+
+        {/* Two-column: Recent expenses | Spending insights */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="min-h-0 flex flex-col">
             <RecentActivity
               transactions={filteredByYear}
               excludedCategories={excludedCategories}
               onViewAll={() => setView('transactions')}
             />
           </div>
+          <div className="min-h-0 flex flex-col">
+            <SpendingInsights
+              transactions={filteredByYear}
+              selectedYear={activeYear}
+              excludedCategories={excludedCategories}
+              customCategories={customCategories}
+            />
+          </div>
         </div>
-
-        <SpendingInsights
-          transactions={filteredByYear}
-          selectedYear={activeYear}
-          excludedCategories={excludedCategories}
-          customCategories={customCategories}
-        />
 
         <SpendingBreakdownSection
           transactions={filteredByYear}

@@ -40,45 +40,6 @@ function buildCategoryStats(transactions) {
   return { spending, income, totalSpent, totalIncome }
 }
 
-// ── Ranked category row ────────────────────────────────────────────
-function CategoryRow({ rank, name, amount, count, avgPerMonth, monthsWithSpending, pct, color }) {
-  return (
-    <div className="border-b last:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
-      <div className="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-[var(--border-subtle)]/50">
-        <span className="text-sm font-mono w-6 text-right pt-0.5 flex-shrink-0 select-none" style={{ color: 'var(--text-secondary)' }}>
-          {String(rank).padStart(2, '0')}
-        </span>
-        <span className="w-3 h-3 rounded-full flex-shrink-0 mt-0.5" style={{ background: color }} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <p className="text-base font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{name}</p>
-            </div>
-            <div className="flex items-baseline gap-2 flex-shrink-0">
-              <span className="text-sm font-mono px-2 py-0.5 rounded-md" style={{ background: `${color}22`, color }}>
-                {pct}%
-              </span>
-              <span className="text-base font-bold num text-red-600">{fmt(-amount)}</span>
-            </div>
-          </div>
-          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mb-2">
-            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{count} transaction{count !== 1 ? 's' : ''}</span>
-            {monthsWithSpending > 0 && (
-              <>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>·</span>
-                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>avg <span className="font-mono">{fmt(avgPerMonth)}</span>/mo</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── Monthly breakdown: click to expand for full category breakdown (no bar) ─
 function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
   const [openMonths, setOpenMonths] = useState(new Set())
@@ -359,7 +320,6 @@ export default function SpendingBreakdownSection({
     [customCategories],
   )
   const getColor = (name) => customColorMap[name] || CATEGORY_COLORS[name] || '#9ca3af'
-  const yearLabel = selectedYear != null ? String(selectedYear) : 'All years'
 
   if (!transactions?.length) return null
 
@@ -402,43 +362,6 @@ export default function SpendingBreakdownSection({
           selectedYear={selectedYear}
           getColor={getColor}
         />
-      )}
-
-      {/* Ranked spending categories */}
-      {spendingWithAvg.length > 0 ? (
-        <div className="card overflow-hidden mb-6">
-          <div className="card-header">
-            <h3 className="card-title flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-red-400" />
-              {selectedYear != null ? 'Total YTD' : 'Spending by category'}
-            </h3>
-            <p className="card-subtitle mb-0">
-              {spendingWithAvg.length} categor{spendingWithAvg.length !== 1 ? 'ies' : 'y'} · {yearLabel}
-            </p>
-          </div>
-
-          {spendingWithAvg.map(({ name, amount, count, monthsWithSpending, avgPerMonth }, idx) => {
-            const pct = totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(1) : 0
-            const color = getColor(name)
-            return (
-              <CategoryRow
-                key={name}
-                rank={idx + 1}
-                name={name}
-                amount={amount}
-                count={count}
-                avgPerMonth={avgPerMonth}
-                monthsWithSpending={monthsWithSpending}
-                pct={pct}
-                color={color}
-              />
-            )
-          })}
-        </div>
-      ) : (
-        <div className="card px-5 py-10 text-center mb-6">
-          <p className="text-slate-500 text-sm">No spending in this period.</p>
-        </div>
       )}
 
     </section>

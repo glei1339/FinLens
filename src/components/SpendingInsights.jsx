@@ -135,20 +135,35 @@ export default function SpendingInsights({ transactions, selectedYear, excludedC
   )
   const getColor = (cat) => customColorMap[cat] || CATEGORY_COLORS[cat] || '#9ca3af'
 
-  if (!insight || !insight.rows.length) return null
+  if (!insight || !insight.rows.length) {
+    return (
+      <div className="card overflow-hidden h-full flex flex-col">
+        <div className="card-header flex-shrink-0">
+          <h3 className="dashboard-card-title flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 shrink-0" style={{ color: 'var(--accent)' }} />
+            Spending insights
+          </h3>
+          <p className="card-subtitle mt-0.5">Need at least 2 months or 2 years of data to compare.</p>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No insights yet.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="card overflow-hidden mb-6">
-      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h3 className="card-title flex items-center gap-2 text-lg">
-          <Lightbulb className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+    <div className="card overflow-hidden h-full flex flex-col min-h-0 mb-0">
+      <div className="card-header flex-shrink-0">
+        <h3 className="dashboard-card-title flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 shrink-0" style={{ color: 'var(--accent)' }} />
           Spending insights
         </h3>
-        <p className="card-subtitle mt-1">
+        <p className="card-subtitle mt-0.5">
           Category change: {insight.previousLabel} → {insight.currentLabel}
         </p>
       </div>
-      <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="divide-y flex-1 min-h-0 overflow-auto" style={{ borderColor: 'var(--border-subtle)' }}>
         {insight.rows.map(({ category, current, previous, change, pctChange }) => {
           const isUp = change > 0
           const isDown = change < 0
@@ -157,17 +172,17 @@ export default function SpendingInsights({ transactions, selectedYear, excludedC
             <div key={category} className="px-6 py-3.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: getColor(category) }} />
-                <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{category}</span>
+                <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{category}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isFlat ? (
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>No change</span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>No change</span>
                 ) : (
                   <>
                     {isUp ? (
-                      <TrendingUp className="w-4 h-4 text-red-500" aria-hidden />
+                      <TrendingUp className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-emerald-600" aria-hidden />
+                      <TrendingDown className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden />
                     )}
                     <span className={`text-sm font-semibold tabular-nums ${isUp ? 'text-red-600' : 'text-emerald-600'}`}>
                       {isUp ? '+' : ''}{fmt(change)} {isUp ? 'more' : 'less'}
