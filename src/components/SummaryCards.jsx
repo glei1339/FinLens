@@ -66,7 +66,7 @@ export default function SummaryCards({ transactions, excludedCategories }) {
             Total spent
           </p>
           <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--danger)' }}>{fmtCompact(totalSpent)}</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>All expenses in this period</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Based on selected year above</p>
         </div>
 
         <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
@@ -77,7 +77,7 @@ export default function SummaryCards({ transactions, excludedCategories }) {
             Avg per month
           </p>
           <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--accent)' }}>{fmtCompact(avgPerMonth)}</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>{monthCount} month{monthCount !== 1 ? 's' : ''} of data</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Across {monthCount} month{monthCount !== 1 ? 's' : ''} with spending</p>
         </div>
 
         <div className="card p-6 transition-all duration-200 hover:shadow-finlens">

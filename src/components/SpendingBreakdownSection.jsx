@@ -79,10 +79,10 @@ function CategoryRow({ rank, name, amount, count, avgPerMonth, monthsWithSpendin
   )
 }
 
-// ── Monthly breakdown ──────────────────────────────────────────────
+// ── Monthly breakdown: click to expand for full category breakdown (no bar) ─
 function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
   const [openMonths, setOpenMonths] = useState(new Set())
-  const maxTotal = Math.max(...monthlySpending.map((m) => m.amount), 1)
+  const yearTotal = monthlySpending.reduce((s, m) => s + m.amount, 0)
 
   function toggle(month) {
     setOpenMonths((prev) => {
@@ -95,90 +95,68 @@ function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
 
   return (
     <div className="card overflow-hidden mb-6">
-      <div className="card-header">
-        <div>
-          <h3 className="card-title flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-500" />
-            Month by month
-          </h3>
-          <p className="card-subtitle">Expenses in {selectedYear} · click to expand</p>
-        </div>
-        <span className="card-subtitle mb-0">{monthlySpending.length} month{monthlySpending.length !== 1 ? 's' : ''}</span>
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+        <h3 className="card-title flex items-center gap-2 text-lg">
+          <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+          Month by month
+        </h3>
+        <p className="card-subtitle mt-1">
+          {selectedYear} · {fmt(-yearTotal)} total · click a month for full breakdown
+        </p>
       </div>
 
       <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
         {monthlySpending.map(({ month, label, amount, byCategory }) => {
           const isOpen = openMonths.has(month)
           const cats = Object.entries(byCategory || {}).sort((a, b) => b[1].amount - a[1].amount)
-          const barPct = (amount / maxTotal) * 100
 
           return (
             <div key={month}>
-              <div
-                className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-slate-50/80 transition-colors"
+              <button
+                type="button"
                 onClick={() => toggle(month)}
+                className="w-full px-6 py-4 flex items-center justify-between gap-4 text-left hover:bg-[var(--border-subtle)]/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
               >
-                <div className="w-8 flex-shrink-0">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</p>
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{selectedYear}</p>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${barPct}%`,
-                          background: cats.length > 0
-                            ? getColor(cats[0][0])
-                            : 'rgba(99,102,241,0.6)',
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm font-bold num flex-shrink-0 w-20 text-right text-red-600">
-                      {fmt(-amount)}
+                <div className="flex items-center gap-3">
+                  <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{label}</span>
+                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{selectedYear}</span>
+                  {cats.length > 0 && (
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {cats.length} categor{cats.length !== 1 ? 'ies' : 'y'}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {cats.slice(0, 5).map(([catName]) => (
-                      <span
-                        key={catName}
-                        className="flex items-center gap-1 text-sm px-2 py-0.5 rounded-md"
-                        style={{ background: `${getColor(catName)}22`, color: 'var(--text-secondary)' }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: getColor(catName) }} />
-                        {catName}
-                      </span>
-                    ))}
-                    {cats.length > 5 && (
-                      <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>+{cats.length - 5}</span>
-                    )}
-                  </div>
+                  )}
                 </div>
-                <span className="flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
-                  {isOpen
-                    ? <ChevronDown className="w-3.5 h-3.5" />
-                    : <ChevronRight className="w-3.5 h-3.5" />}
-                </span>
-              </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-bold font-mono num tabular-nums" style={{ color: 'var(--danger)' }}>
+                    {fmt(-amount)}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  </span>
+                </div>
+              </button>
 
-              {/* Expanded category detail */}
               {isOpen && cats.length > 0 && (
-                <div className="mx-4 mb-3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                  {cats.map(([catName, { amount: catAmt }]) => {
-                    const catPct = amount > 0 ? ((catAmt / amount) * 100).toFixed(0) : 0
-                    return (
-                      <div key={catName} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-200 last:border-0">
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: getColor(catName) }}
-                        />
-                        <span className="text-sm font-medium flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{catName}</span>
-                        <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>{catPct}%</span>
-                        <span className="text-base font-mono font-semibold text-red-600 num">{fmt(-catAmt)}</span>
-                      </div>
-                    )
-                  })}
+                <div className="px-6 pb-4 pt-0">
+                  <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                    <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                      {cats.map(([catName, { amount: catAmt }]) => {
+                        const pct = amount > 0 ? ((catAmt / amount) * 100).toFixed(1) : 0
+                        return (
+                          <div key={catName} className="flex items-center justify-between gap-4 px-4 py-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: getColor(catName) }} />
+                              <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{catName}</span>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{pct}%</span>
+                              <span className="text-sm font-semibold font-mono num" style={{ color: 'var(--danger)' }}>{fmt(-catAmt)}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -245,7 +223,7 @@ function YearComparison({ yearlyAverages }) {
           <BarChart3 className="w-4 h-4 text-slate-500" />
           <h3 className="card-title">Year over year</h3>
         </div>
-        <p className="card-subtitle mb-0">Total spent &amp; avg per month</p>
+        <p className="card-subtitle mb-0">Total spent and average per month in each year</p>
       </div>
 
       <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -389,9 +367,9 @@ export default function SpendingBreakdownSection({
     <section className="mt-2">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="section-title">Where every dollar went</h2>
+          <h2 className="section-title">Expenses by category</h2>
           <p className="section-desc">
-            Expenses by category{selectedYear != null ? ` for ${selectedYear}` : ' (all years)'}
+            {selectedYear != null ? `Spending in ${selectedYear} by category` : 'All-time spending by category'}
           </p>
         </div>
 
@@ -417,13 +395,22 @@ export default function SpendingBreakdownSection({
         <YearComparison yearlyAverages={yearlyAverages} />
       )}
 
+      {/* Month by month (when a year is selected) — moved up to replace old MonthlyOverview */}
+      {selectedYear != null && monthlySpending.length > 0 && (
+        <MonthlyBreakdown
+          monthlySpending={monthlySpending}
+          selectedYear={selectedYear}
+          getColor={getColor}
+        />
+      )}
+
       {/* Ranked spending categories */}
       {spendingWithAvg.length > 0 ? (
         <div className="card overflow-hidden mb-6">
           <div className="card-header">
             <h3 className="card-title flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-red-400" />
-              Where you spent
+              {selectedYear != null ? 'Total YTD' : 'Spending by category'}
             </h3>
             <p className="card-subtitle mb-0">
               {spendingWithAvg.length} categor{spendingWithAvg.length !== 1 ? 'ies' : 'y'} · {yearLabel}
@@ -452,15 +439,6 @@ export default function SpendingBreakdownSection({
         <div className="card px-5 py-10 text-center mb-6">
           <p className="text-slate-500 text-sm">No spending in this period.</p>
         </div>
-      )}
-
-      {/* Monthly breakdown (only when a year is selected) */}
-      {selectedYear != null && monthlySpending.length > 0 && (
-        <MonthlyBreakdown
-          monthlySpending={monthlySpending}
-          selectedYear={selectedYear}
-          getColor={getColor}
-        />
       )}
 
     </section>

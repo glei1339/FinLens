@@ -65,7 +65,7 @@ export default function MonthlyOverview({ transactions, selectedYear, excludedCa
       <div className="card-header px-6 py-4">
         <div>
           <h2 className="card-title text-lg">
-            {isYearlyView ? 'Expenses by year' : 'Expenses by month'}
+            {isYearlyView ? 'Expenses by year' : 'Month by month'}
           </h2>
           <p className="card-subtitle">
             {rows.length} {isYearlyView ? 'year' : 'month'}{rows.length !== 1 ? 's' : ''} · where your money went

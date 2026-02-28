@@ -39,7 +39,7 @@ export default function TransactionsPage({
           <h1 className="section-title">All expenses</h1>
         </div>
         <p className="section-desc">
-          Every dollar, categorized. Filter by year, month, and category. Edit categories in the table.
+          All your expenses in one list. Filter by year, month, or category. Click a category badge to change it.
         </p>
       </div>
 

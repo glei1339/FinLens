@@ -262,7 +262,7 @@ export default function SpendingBreakdownPage({
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
           <div className="px-5 py-4 border-b border-white/10">
-            <h2 className="font-semibold text-white">Where you spent</h2>
+            <h2 className="font-semibold text-white">{selectedYear != null ? 'Total YTD' : 'Spending by category'}</h2>
             <p className="text-xs text-slate-500 mt-0.5">By category · {yearLabel}</p>
           </div>
           <div className="divide-y divide-white/5">

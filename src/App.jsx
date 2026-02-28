@@ -4,9 +4,9 @@ import UploadZone from './components/UploadZone'
 import SummaryCards from './components/SummaryCards'
 import SpendingChart from './components/SpendingChart'
 import RecentActivity from './components/RecentActivity'
-import MonthlyOverview from './components/MonthlyOverview'
 import YearFilter from './components/YearFilter'
 import SpendingBreakdownSection from './components/SpendingBreakdownSection'
+import SpendingInsights from './components/SpendingInsights'
 import TransactionsPage from './components/TransactionsPage'
 import FilesPage from './components/FilesPage'
 import RulesPage from './components/RulesPage'
@@ -1041,7 +1041,7 @@ export default function App() {
         <div className="mb-10 animate-fade-up">
           <h1 className="section-title">Where your money goes</h1>
           <p className="section-desc">
-            {activeYear != null ? activeYear : 'All years'} · every expense broken down by category
+            {activeYear != null ? `Expenses in ${activeYear} broken down by category` : 'All years · expenses broken down by category'}
           </p>
         </div>
         <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
@@ -1060,7 +1060,12 @@ export default function App() {
           </div>
         </div>
 
-        <MonthlyOverview transactions={filteredByYear} selectedYear={activeYear} excludedCategories={excludedCategories} />
+        <SpendingInsights
+          transactions={filteredByYear}
+          selectedYear={activeYear}
+          excludedCategories={excludedCategories}
+          customCategories={customCategories}
+        />
 
         <SpendingBreakdownSection
           transactions={filteredByYear}

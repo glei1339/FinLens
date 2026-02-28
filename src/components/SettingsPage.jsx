@@ -45,7 +45,7 @@ export default function SettingsPage({
           <h1 className="section-title">Settings</h1>
         </div>
         <p className="section-desc">
-          API keys and AI options. Your key is stored only in this browser and is never sent to our servers.
+          API keys and AI options. Your key is stored only in this browser and never leaves your device.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default function SettingsPage({
           <h2 className="card-title text-lg">Excluded from expense tracker</h2>
         </div>
         <p className="text-sm mb-4 card-subtitle">
-          Check any category to exclude it from totals, charts, and the expense list. Those transactions are still in your data but not counted as spending.
+          Check categories to exclude from expense totals and charts (e.g. Transfers). Those transactions stay in your data but are not counted as spending.
         </p>
         {categoriesForExcludedUI.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Upload a CSV to see categories used in your data.</p>

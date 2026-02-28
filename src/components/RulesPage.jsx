@@ -17,7 +17,7 @@ export default function RulesPage({ rules, categories, onChange, onBack }) {
       <div className="mb-8">
         <h1 className="section-title mb-2">Auto-categorization rules</h1>
         <p className="section-desc">
-          Manage rules for this profile. Rules match words in the description and set the category automatically.
+          Add keyword rules so transactions are auto-categorized. If a transaction description contains the keyword, it gets the category you choose.
         </p>
       </div>
 
