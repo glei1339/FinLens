@@ -62,7 +62,8 @@ export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCrea
                     : profiles.length > 1 && (
                       <button
                         onClick={e => { e.stopPropagation(); onDelete(p.id) }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0 p-0.5 rounded"
+                        className="opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 p-0.5 rounded hover:text-[var(--danger)]"
+              style={{ color: 'var(--text-muted)' }}
                         title={`Delete "${p.name}"`}
                       >
                         <Trash2 className="w-4 h-4" />

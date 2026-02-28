@@ -18,6 +18,7 @@ import { categorizeAll, needsSignFlip, CATEGORIES, CATEGORY_COLORS } from './uti
 import { classifyDepositsAndPayments, categorizeTransactionsWithAI } from './utils/aiClassifier'
 
 const AI_API_KEY_STORAGE = 'finlens-openai-api-key'
+const THEME_STORAGE = 'finlens-theme'
 
 const PROFILE_COLORS = [
   '#6366f1', '#22c55e', '#f97316', '#ec4899',
@@ -95,7 +96,7 @@ export default function App() {
   const [error,          setError]          = useState(null)
   const [aiProcessedMsg,  setAiProcessedMsg] = useState(null) // brief "Processed with AI" after upload
   const [activeCategory, setActiveCategory] = useState(null)
-  const [activeYear,     setActiveYear]     = useState(null)
+  const [activeYear,     setActiveYear]     = useState(() => new Date().getFullYear())
   const [activeMonth,    setActiveMonth]    = useState(null) // 1–12 or null
   const [view,           setView]           = useState('dashboard') // 'dashboard' | 'transactions' | 'files' | 'rules' | 'settings'
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -106,6 +107,16 @@ export default function App() {
   const [useAIAnalysis, setUseAIAnalysis] = useState(false)
   const [duplicateModal, setDuplicateModal] = useState({ open: false, files: null, duplicateNames: [] })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setThemeState] = useState(() => {
+    try { return localStorage.getItem(THEME_STORAGE) || 'light' } catch { return 'light' }
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light')
+    try { localStorage.setItem(THEME_STORAGE, theme) } catch (_) {}
+  }, [theme])
+
+  const setTheme = useCallback((value) => setThemeState(value === 'dark' ? 'dark' : 'light'), [])
 
   const setOpenaiApiKey = useCallback((key) => {
     setOpenaiApiKeyState(key)
@@ -778,6 +789,8 @@ export default function App() {
             excludedCategories={excludedCategories}
             onExcludedCategoriesChange={handleExcludedCategoriesChange}
             categoriesForExcludedUI={categoriesForExcludedUI}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         </div>
       )
@@ -828,7 +841,8 @@ export default function App() {
                 type="checkbox"
                 checked={useAIAnalysis}
                 onChange={(e) => setUseAIAnalysis(e.target.checked)}
-                className="rounded-xl border-slate-300 bg-white text-[var(--accent)] focus:ring-[var(--accent)] w-4 h-4"
+                className="rounded-xl border w-4 h-4 focus:ring-[var(--accent)] bg-[var(--bg-card)]"
+              style={{ borderColor: 'var(--input-border)', color: 'var(--accent)' }}
               />
               <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Use AI to classify deposits vs payments</span>
             </label>
@@ -948,7 +962,7 @@ export default function App() {
               <Menu className="w-6 h-6" />
             </button>
             <span className="font-display font-semibold text-lg truncate" style={{ color: 'var(--text-primary)' }}>
-              {view === 'dashboard' ? 'Where your money goes' : navItems.find((n) => n.id === view)?.label || view}
+              {view === 'dashboard' ? '' : navItems.find((n) => n.id === view)?.label || view}
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -1035,6 +1049,8 @@ export default function App() {
             excludedCategories={excludedCategories}
             onExcludedCategoriesChange={handleExcludedCategoriesChange}
             categoriesForExcludedUI={categoriesForExcludedUI}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         ) : (
         <>
@@ -1046,7 +1062,7 @@ export default function App() {
         </div>
         <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
 
-        {/* Spending overview — full width, respects exclude category filter */}
+        {/* Spending overview YTD — full width, respects exclude category filter */}
         <div className="mb-6">
           <SpendingChart
             transactions={filteredByYear}

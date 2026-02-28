@@ -86,7 +86,7 @@ function buildMonthlyData(transactions, activeYear) {
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   const { name, value, avgPerMonth } = payload[0].payload
-  const color = CATEGORY_COLORS[name] || '#94a3b8'
+  const color = CATEGORY_COLORS[name] || 'var(--chart-tick)'
   return (
     <div className="rounded-xl px-4 py-3 text-sm shadow-finlens border bg-[var(--bg-card)]" style={{ borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2 mb-1">
@@ -117,22 +117,18 @@ const CustomBarTooltip = ({ active, payload }) => {
   )
 }
 
-// Custom center label for pie chart
+// Custom center label for pie chart (theme-aware)
 function PieCenterLabel({ cx, cy, total }) {
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-      <tspan x={cx} y={cy - 8} fontSize="11" fill="#94a3b8" fontWeight="500" letterSpacing="0.08em">
-        TOTAL
-      </tspan>
-      <tspan x={cx} y={cy + 12} fontSize="16" fill="#0f172a" fontWeight="700">
-        {fmt(total)}
-      </tspan>
+      <tspan x={cx} y={cy - 8} fontSize="11" fontWeight="500" letterSpacing="0.08em" style={{ fill: 'var(--text-muted)' }}>TOTAL</tspan>
+      <tspan x={cx} y={cy + 12} fontSize="16" fontWeight="700" style={{ fill: 'var(--text-primary)' }}>{fmt(total)}</tspan>
     </text>
   )
 }
 
 export default function SpendingChart({ transactions, activeYear, excludedCategories = [] }) {
-  const [view, setView] = useState('trend')
+  const [view, setView] = useState('pie')
   const excludedSet = useMemo(
     () => new Set((excludedCategories || []).map((c) => (c || '').trim())),
     [excludedCategories]
@@ -158,8 +154,8 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
   const trendMax = monthlyData.reduce((m, d) => Math.max(m, d.value), 0)
 
   const tabs = [
-    { id: 'trend', label: activeYear != null ? 'Monthly' : 'By Year' },
     { id: 'pie',   label: 'Categories' },
+    { id: 'trend', label: activeYear != null ? 'Monthly' : 'By Year' },
     { id: 'bar',   label: 'Bar' },
   ]
 
@@ -167,7 +163,7 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
     <div className="card p-6 animate-fade-up h-full flex flex-col min-h-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 flex-shrink-0">
         <div>
-          <h2 className="card-title text-lg">Spending overview</h2>
+          <h2 className="card-title text-lg">Spending overview YTD</h2>
           <p className="card-subtitle mt-0.5">
             {view === 'trend'
               ? activeYear != null
@@ -200,7 +196,7 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
       {view === 'trend' && (
         <div className="flex-1 min-h-0 flex flex-col">
           {monthlyData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-slate-500 text-sm">
+            <div className="h-48 flex items-center justify-center text-sm" style={{ color: 'var(--text-muted)' }}>
               No expense data available
             </div>
           ) : (
@@ -213,16 +209,16 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
                       <stop offset="100%" stopColor="#6366f1" stopOpacity="0.04" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 12, fill: '#475569' }}
+                    tick={{ fontSize: 12, fill: 'var(--chart-tick)' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
-                    tick={{ fontSize: 12, fill: '#475569' }}
+                    tick={{ fontSize: 12, fill: 'var(--chart-tick)' }}
                     axisLine={false}
                     tickLine={false}
                     width={48}
@@ -306,9 +302,8 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center mb-0.5">
                       <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
-                      <span className="text-sm font-mono ml-2" style={{ color: 'var(--text-secondary)' }}>{pct}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-1.5 rounded-full overflow-hidden bg-subtle">
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${pct}%`, background: color }}
@@ -331,10 +326,10 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
         <div className="flex-1 min-h-0 flex items-start">
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={top} margin={{ top: 4, right: 8, left: 0, bottom: 64 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 12, fill: '#475569' }}
+              tick={{ fontSize: 12, fill: 'var(--chart-tick)' }}
               angle={-38}
               textAnchor="end"
               interval={0}
@@ -343,7 +338,7 @@ export default function SpendingChart({ transactions, activeYear, excludedCatego
             />
             <YAxis
               tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
-              tick={{ fontSize: 12, fill: '#475569' }}
+              tick={{ fontSize: 12, fill: 'var(--chart-tick)' }}
               axisLine={false}
               tickLine={false}
             />

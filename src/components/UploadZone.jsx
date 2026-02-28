@@ -47,7 +47,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-100">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-subtle">
             {loading ? (
               <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
             ) : (
@@ -113,7 +113,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
           >
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${dragging ? 'bg-white shadow-sm scale-110' : 'bg-slate-100'}`} style={dragging ? { color: 'var(--accent)' } : {}}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${dragging ? 'bg-[var(--bg-card)] shadow-sm scale-110' : 'bg-subtle'}`} style={dragging ? { color: 'var(--accent)' } : {}}>
               {loading ? (
                 <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
               ) : (
@@ -126,7 +126,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               or click to browse · CSV only
             </p>
-            <div className="mt-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100">
+            <div className="mt-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-subtle">
               <FileText className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Chase, BofA, Wells Fargo, and more</span>
             </div>
@@ -146,10 +146,10 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           {FEATURES.map(({ icon: Icon, title, desc }, i) => (
             <div
               key={title}
-              className="flex items-start gap-3 rounded-xl p-4 bg-white border border-slate-200/80 transition-all duration-200 hover:border-slate-300 hover:shadow-sm"
-              style={{ animationDelay: `${0.35 + i * 0.06}s` }}
+              className="flex items-start gap-3 rounded-xl p-4 border transition-all duration-200 hover:shadow-sm bg-[var(--bg-card)]"
+              style={{ borderColor: 'var(--border)', animationDelay: `${0.35 + i * 0.06}s` }}
             >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100" style={{ color: 'var(--accent)' }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-subtle" style={{ color: 'var(--accent)' }}>
                 <Icon className="w-4 h-4" strokeWidth={2} />
               </div>
               <div className="min-w-0">

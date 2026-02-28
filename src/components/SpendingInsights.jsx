@@ -180,11 +180,11 @@ export default function SpendingInsights({ transactions, selectedYear, excludedC
                 ) : (
                   <>
                     {isUp ? (
-                      <TrendingUp className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
+                      <TrendingUp className="w-4 h-4 shrink-0" style={{ color: 'var(--danger)' }} aria-hidden />
                     ) : (
-                      <TrendingDown className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden />
+                      <TrendingDown className="w-4 h-4 shrink-0" style={{ color: 'var(--success)' }} aria-hidden />
                     )}
-                    <span className={`text-sm font-semibold tabular-nums ${isUp ? 'text-red-600' : 'text-emerald-600'}`}>
+                    <span className="text-sm font-semibold tabular-nums" style={{ color: isUp ? 'var(--danger)' : 'var(--success)' }}>
                       {isUp ? '+' : ''}{fmt(change)} {isUp ? 'more' : 'less'}
                     </span>
                     <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>

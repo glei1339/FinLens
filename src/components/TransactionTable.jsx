@@ -240,7 +240,7 @@ export default function TransactionTable({ transactions, onCategoryChange, onDel
                       )}
                     </div>
                   </td>
-                  <td className={`px-5 py-3 text-right font-mono font-semibold text-sm num ${t.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <td className="px-5 py-3 text-right font-mono font-semibold text-sm num" style={{ color: t.amount >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                     {t.amount >= 0 ? '+' : ''}{fmt(t.amount)}
                   </td>
                   <td className="px-3 py-3 text-right">
@@ -248,7 +248,8 @@ export default function TransactionTable({ transactions, onCategoryChange, onDel
                       <button
                         type="button"
                         onClick={() => setTransactionToDelete(t)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-2 rounded-lg transition-colors hover:bg-[var(--danger-light)] hover:text-[var(--danger)]"
+              style={{ color: 'var(--text-muted)' }}
                         title="Delete transaction"
                         aria-label="Delete transaction"
                       >

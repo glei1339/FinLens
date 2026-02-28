@@ -54,7 +54,8 @@ export default function RulesPanel({ rules = [], categories = [], onChange }) {
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="flex flex-col gap-2 rounded-lg border bg-slate-50/50 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3 border-slate-200"
+              className="flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-center sm:gap-3 bg-subtle"
+              style={{ borderColor: 'var(--border)' }}
             >
               <div className="flex items-center gap-2 text-sm sm:w-1/2" style={{ color: 'var(--text-muted)' }}>
                 <span className="whitespace-nowrap">If description contains</span>
@@ -85,7 +86,7 @@ export default function RulesPanel({ rules = [], categories = [], onChange }) {
                 <button
                   type="button"
                   onClick={() => handleDeleteRule(rule.id)}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm transition-colors hover:text-red-600 hover:bg-red-50"
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm transition-colors hover:bg-[var(--danger-light)] hover:text-[var(--danger)]"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   <Trash2 className="w-3 h-3" />
@@ -99,8 +100,8 @@ export default function RulesPanel({ rules = [], categories = [], onChange }) {
         <button
           type="button"
           onClick={handleAddRule}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm transition-colors hover:bg-slate-50 hover:border-sky-300"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm transition-colors hover:bg-subtle"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
         >
           <Plus className="w-3 h-3" />
           Add your first rule

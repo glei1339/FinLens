@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ArrowLeft, Settings, Key, Sparkles, Eye, EyeOff, RefreshCw, Filter } from 'lucide-react'
+import { ArrowLeft, Settings, Key, Sparkles, Eye, EyeOff, RefreshCw, Filter, Sun, Moon } from 'lucide-react'
 
 export default function SettingsPage({
   openaiApiKey,
@@ -12,6 +12,8 @@ export default function SettingsPage({
   excludedCategories = [],
   onExcludedCategoriesChange,
   categoriesForExcludedUI = [],
+  theme = 'light',
+  onThemeChange,
 }) {
   const [showApiKey, setShowApiKey] = useState(false)
   const canReanalyze = useAIAnalysis && openaiApiKey?.trim() && hasTransactions
@@ -48,6 +50,44 @@ export default function SettingsPage({
           API keys and AI options. Your key is stored only in this browser and never leaves your device.
         </p>
       </div>
+
+      {onThemeChange && (
+        <section className="card p-6 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center bg-subtle" style={{ color: 'var(--text-muted)' }}>
+              {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            </span>
+            <h2 className="card-title text-lg">Appearance</h2>
+          </div>
+          <p className="text-sm mb-4 card-subtitle">
+            Choose light or dark theme for the app.
+          </p>
+          <div className="flex gap-2 p-1.5 rounded-xl" style={{ background: 'var(--border-subtle)' }}>
+            <button
+              type="button"
+              onClick={() => onThemeChange('light')}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                theme === 'light' ? 'text-white shadow-sm' : ''
+              }`}
+              style={theme === 'light' ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+            >
+              <Sun className="w-4 h-4" />
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => onThemeChange('dark')}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                theme === 'dark' ? 'text-white shadow-sm' : ''
+              }`}
+              style={theme === 'dark' ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+            >
+              <Moon className="w-4 h-4" />
+              Dark
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="card p-6 mb-6">
         <div className="flex items-center gap-3 mb-3">
@@ -93,8 +133,8 @@ export default function SettingsPage({
               type="checkbox"
               checked={useAIAnalysis}
               onChange={(e) => onUseAIAnalysisChange(e.target.checked)}
-              className="rounded-xl border-slate-300 w-4 h-4 focus:ring-[var(--accent)]"
-              style={{ color: 'var(--accent)' }}
+className="rounded-xl w-4 h-4 focus:ring-[var(--accent)] border"
+                style={{ borderColor: 'var(--input-border)', color: 'var(--accent)' }}
             />
             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               Use AI to read PDFs, classify deposits vs payments, and auto-categorize when uploading
@@ -131,7 +171,7 @@ export default function SettingsPage({
                     type="checkbox"
                     checked={isExcluded}
                     onChange={() => toggleExcluded(cat)}
-                    className="rounded border-slate-300 w-4 h-4 focus:ring-[var(--accent)]"
+                    className="rounded w-4 h-4 focus:ring-[var(--accent)] border-[var(--input-border)]"
                     style={{ color: 'var(--accent)' }}
                   />
                   <span className="text-sm font-medium" style={{ color: isExcluded ? 'var(--text-muted)' : 'var(--text-primary)' }}>

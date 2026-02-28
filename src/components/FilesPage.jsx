@@ -35,7 +35,7 @@ function FolderBadge({ value, onChange }) {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="px-2 py-1 rounded-lg text-xs border border-dashed transition-colors max-w-[180px] truncate hover:bg-slate-50"
+          className="px-2 py-1 rounded-lg text-xs border border-dashed transition-colors max-w-[180px] truncate hover:bg-subtle"
           style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}
           title={value || 'Click to add this file to a folder'}
         >
@@ -133,9 +133,12 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
               type="button"
               onClick={() => onFileYearChange?.(null)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                selectedFileYear == null ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
+                selectedFileYear == null ? 'text-white border-transparent' : 'hover:bg-subtle'
               }`}
-              style={selectedFileYear == null ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+              style={{
+                ...(selectedFileYear == null ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }),
+                borderColor: selectedFileYear == null ? 'transparent' : 'var(--border)',
+              }}
             >
               All years · {fileNames.length}
             </button>
@@ -150,9 +153,12 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                   type="button"
                   onClick={() => onFileYearChange?.(isActive ? null : y)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                    isActive ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
+                    isActive ? 'text-white border-transparent' : 'hover:bg-subtle'
                   }`}
-                  style={isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+                  style={{
+                    ...(isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }),
+                    borderColor: isActive ? 'transparent' : 'var(--border)',
+                  }}
                 >
                   {y} · {count} file{count !== 1 ? 's' : ''}
                 </button>
@@ -205,7 +211,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                   setCreatingFolder(false)
                   setNewFolderName('')
                 }}
-                className="px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-slate-100"
+                className="px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-subtle"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Cancel
@@ -259,7 +265,8 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+              <div className="px-4 py-3 border-b flex items-center justify-between bg-subtle"
+              style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-center gap-2">
                   <FolderIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                   {isUnfiled ? (
@@ -314,7 +321,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                     <button
                       type="button"
                       onClick={() => onDeleteFolder(folderKey)}
-                      className="p-1 rounded transition-colors hover:text-red-600"
+                      className="p-1 rounded transition-colors hover:text-[var(--danger)]"
                       style={{ color: 'var(--text-muted)' }}
                       title="Delete folder (files move to No folder)"
                     >
@@ -323,7 +330,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                   )}
                 </div>
               </div>
-              <div className="divide-y divide-slate-200">
+              <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
                 {names.map((name) => {
                   const count = transactions.filter((t) => t.source === name).length
                   const folder = fileFolders[name] || ''
@@ -337,10 +344,10 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                         e.currentTarget.classList.add('opacity-60')
                       }}
                       onDragEnd={(e) => e.currentTarget.classList.remove('opacity-60')}
-                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/80 cursor-grab active:cursor-grabbing"
+                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-subtle cursor-grab active:cursor-grabbing"
                     >
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50 border border-emerald-200">
-                        <FileText className="w-5 h-5 text-emerald-600" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border" style={{ background: 'var(--success-light)', borderColor: 'var(--success)' }}>
+                        <FileText className="w-5 h-5" style={{ color: 'var(--success)' }} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }} title={name}>
@@ -360,7 +367,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                       <button
                         type="button"
                         onClick={() => onRemoveFile(name)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:text-red-600 hover:bg-red-50"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--danger-light)] hover:text-[var(--danger)]"
                         style={{ color: 'var(--text-muted)' }}
                         title={`Remove ${name} from this profile`}
                       >

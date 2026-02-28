@@ -101,21 +101,15 @@ function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
                 <div className="px-6 pb-4 pt-0">
                   <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                     <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-                      {cats.map(([catName, { amount: catAmt }]) => {
-                        const pct = amount > 0 ? ((catAmt / amount) * 100).toFixed(1) : 0
-                        return (
+                      {cats.map(([catName, { amount: catAmt }]) => (
                           <div key={catName} className="flex items-center justify-between gap-4 px-4 py-3">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: getColor(catName) }} />
                               <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{catName}</span>
                             </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{pct}%</span>
-                              <span className="text-sm font-semibold font-mono num" style={{ color: 'var(--danger)' }}>{fmt(-catAmt)}</span>
-                            </div>
+                            <span className="text-sm font-semibold font-mono num flex-shrink-0" style={{ color: 'var(--danger)' }}>{fmt(-catAmt)}</span>
                           </div>
-                        )
-                      })}
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -181,7 +175,7 @@ function YearComparison({ yearlyAverages }) {
     <div className="card overflow-hidden mb-6">
       <div className="card-header">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-slate-500" />
+          <BarChart3 className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
           <h3 className="card-title">Year over year</h3>
         </div>
         <p className="card-subtitle mb-0">Total spent and average per month in each year</p>
@@ -191,18 +185,18 @@ function YearComparison({ yearlyAverages }) {
         {yearlyAverages.map(({ year, totalSpent: spent, avgPerMonth, months }) => {
           const barPct = (spent / maxSpent) * 100
           return (
-            <div key={year} className="rounded-lg p-4 bg-slate-50 border border-slate-200">
+            <div key={year} className="rounded-lg p-4 border bg-subtle" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{year}</span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{months} month{months !== 1 ? 's' : ''}</span>
               </div>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden mb-3">
+              <div className="h-2 rounded-full overflow-hidden mb-3 bg-subtle">
                 <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barPct}%`, background: 'var(--accent)' }} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Total spent</p>
-                  <p className="text-sm font-bold num text-red-600">{fmt(spent)}</p>
+                  <p className="text-sm font-bold num" style={{ color: 'var(--danger)' }}>{fmt(spent)}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>Avg / month</p>
@@ -325,29 +319,11 @@ export default function SpendingBreakdownSection({
 
   return (
     <section className="mt-2">
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h2 className="section-title">Expenses by category</h2>
-          <p className="section-desc">
-            {selectedYear != null ? `Spending in ${selectedYear} by category` : 'All-time spending by category'}
-          </p>
-        </div>
-
-        {/* Quick stat pills */}
-        <div className="hidden sm:flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-red-50 border border-red-100">
-            <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-            <span className="font-semibold num text-red-700">{fmt(totalSpent)}</span>
-            <span className="text-red-600/80">spent</span>
-          </div>
-          {selectedYear != null && monthlySpending.length > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-sky-50 border border-sky-100">
-              <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--accent)' }} />
-              <span className="font-semibold num" style={{ color: 'var(--accent)' }}>{fmt(avgMonthlySpending)}</span>
-              <span className="opacity-80" style={{ color: 'var(--accent)' }}>avg/mo</span>
-            </div>
-          )}
-        </div>
+      <div className="mb-5">
+        <h2 className="section-title">Expenses by category</h2>
+        <p className="section-desc">
+          {selectedYear != null ? `Spending in ${selectedYear} by category` : 'All-time spending by category'}
+        </p>
       </div>
 
       {/* Year-over-year comparison (all years view) */}
