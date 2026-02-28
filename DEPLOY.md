@@ -5,6 +5,15 @@
 - [Google Cloud SDK (gcloud)](https://cloud.google.com/sdk/docs/install) installed and logged in
 - A Google Cloud project with the Cloud Run API enabled
 
+## Fix: "could not parse reference" / invalid image name
+
+If you see an error like `invalid image name "...FinLens/finlens:..." could not parse reference`, the image path contains **uppercase letters**. Docker/Artifact Registry require **lowercase** image names.
+
+- **Option A – Use the repo’s `cloudbuild.yaml`:** This repo includes a `cloudbuild.yaml` that uses the lowercase image name `finlens`. In [Cloud Build Triggers](https://console.cloud.google.com/cloud-build/triggers), edit your trigger → set **Configuration** to **Cloud Build configuration file (yaml or json)** → set the config file to `cloudbuild.yaml` in the repo root. Save and re-run the build.
+- **Option B – Fix the trigger image name:** In the trigger’s build configuration, change any image path so every segment is lowercase (e.g. `finlens` instead of `FinLens`). The Cloud Run service name must also be lowercase (e.g. `finlens`).
+
+Substitutions in `cloudbuild.yaml`: `_REGION` (default `us-west1`), `_SERVICE_NAME` (`finlens`), `_REPOSITORY` (`cloud-run-source-deploy`). Override in the trigger if your setup differs.
+
 ## Deploy
 
 From the project root:
