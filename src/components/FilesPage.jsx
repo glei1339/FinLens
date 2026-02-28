@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
-import { ArrowLeft, FileText, Trash2, Folder as FolderIcon, FolderPlus } from 'lucide-react'
+import { ArrowLeft, FileText, Trash2, Folder as FolderIcon, FolderPlus, Calendar, RefreshCw } from 'lucide-react'
+import { getYearFromDate, getUniqueYears } from '../utils/dateHelpers'
 
 const UNFILED_KEY = '__UNFILED__'
 
@@ -15,10 +16,11 @@ function FolderBadge({ value, onChange }) {
 
   return (
     <div className="inline-flex items-center gap-1">
-      <FolderIcon className="w-3.5 h-3.5 text-slate-500" />
+      <FolderIcon className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
       {editing ? (
         <input
-          className="px-2 py-1 rounded-lg bg-slate-900/70 border border-white/10 text-[11px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 max-w-[160px]"
+          className="px-2 py-1 rounded-lg border text-xs focus:outline-none focus:ring-2 focus:ring-offset-0 bg-white max-w-[160px]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -33,7 +35,8 @@ function FolderBadge({ value, onChange }) {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="px-2 py-1 rounded-lg text-[11px] text-slate-400 hover:text-slate-100 hover:bg-white/5 border border-dashed border-white/10 transition-colors max-w-[180px] truncate"
+          className="px-2 py-1 rounded-lg text-xs border border-dashed transition-colors max-w-[180px] truncate hover:bg-slate-50"
+          style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}
           title={value || 'Click to add this file to a folder'}
         >
           {value || 'Add to folder'}
@@ -43,24 +46,32 @@ function FolderBadge({ value, onChange }) {
   )
 }
 
-export default function FilesPage({ fileNames, transactions, fileFolders = {}, folders = [], onFolderChange, onCreateFolder, onDeleteFolder, onRenameFolder, onRemoveFile, onBack }) {
+export default function FilesPage({ fileNames, transactions, fileFolders = {}, folders = [], selectedFileYear, onFileYearChange, onFolderChange, onCreateFolder, onDeleteFolder, onRenameFolder, onRemoveFile, onRereadFiles, rereadLoading = false, fileContents = {}, onBack }) {
+  const years = useMemo(() => getUniqueYears(transactions || []), [transactions])
+
+  const fileNamesForYear = useMemo(() => {
+    if (!fileNames?.length) return []
+    if (selectedFileYear == null) return fileNames
+    return fileNames.filter((name) =>
+      (transactions || []).some((t) => t.source === name && getYearFromDate(t.date) === selectedFileYear)
+    )
+  }, [fileNames, transactions, selectedFileYear])
+
   if (!fileNames?.length) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white mb-8 transition-colors"
+          className="flex items-center gap-2 text-sm font-medium mb-8 transition-colors hover:opacity-80"
+          style={{ color: 'var(--text-muted)' }}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to dashboard
         </button>
-        <div
-          className="rounded-2xl p-12 text-center"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-        >
-          <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400 font-medium">No files uploaded yet</p>
-          <p className="text-slate-500 text-sm mt-1">Use &quot;New Upload&quot; in the header to add CSV or PDF statements.</p>
+        <div className="card p-12 text-center">
+          <FileText className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+          <p className="font-medium" style={{ color: 'var(--text-primary)' }}>No files uploaded yet</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Click Upload in the header to add CSV or PDF statements.</p>
         </div>
       </div>
     )
@@ -73,7 +84,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
       map[folderName] = []
     }
     map[UNFILED_KEY] = []
-    for (const name of fileNames) {
+    for (const name of fileNamesForYear) {
       const folder = (fileFolders[name] || '').trim()
       const key = folder || UNFILED_KEY
       if (!map[key]) map[key] = []
@@ -85,7 +96,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
       return a.localeCompare(b)
     })
     return { map, keys }
-  }, [fileNames, fileFolders, folders])
+  }, [fileNamesForYear, fileFolders, folders])
 
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
@@ -104,62 +115,116 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white mb-8 transition-colors"
+        className="flex items-center gap-2 text-sm font-medium mb-6 transition-colors hover:opacity-80"
+        style={{ color: 'var(--text-muted)' }}
       >
         <ArrowLeft className="w-4 h-4" />
         Back to dashboard
       </button>
 
+      {years.length > 0 && (
+        <div className="card p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+            <h2 className="card-title">View by year</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onFileYearChange?.(null)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+                selectedFileYear == null ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
+              }`}
+              style={selectedFileYear == null ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+            >
+              All years · {fileNames.length}
+            </button>
+            {years.map((y) => {
+              const count = fileNames.filter((name) =>
+                (transactions || []).some((t) => t.source === name && getYearFromDate(t.date) === y)
+              ).length
+              const isActive = selectedFileYear === y
+              return (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => onFileYearChange?.(isActive ? null : y)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+                    isActive ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                  style={isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+                >
+                  {y} · {count} file{count !== 1 ? 's' : ''}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Uploaded files</h1>
-          <p className="text-slate-500 text-sm">
-            Drag files into folders. Remove any file that was added to the wrong profile.
+          <h1 className="section-title mb-1">
+            {selectedFileYear != null ? `Files for ${selectedFileYear}` : 'Uploaded files'}
+          </h1>
+          <p className="section-desc">
+            {selectedFileYear != null
+              ? `Showing ${fileNamesForYear.length} file${fileNamesForYear.length !== 1 ? 's' : ''} with transactions in ${selectedFileYear}.`
+              : 'Drag files into folders. Remove any file that was added to the wrong profile.'}
           </p>
         </div>
-        {onCreateFolder && (
-          <div className="flex items-center gap-2">
-            {creatingFolder ? (
-              <form onSubmit={handleSubmitNewFolder} className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900/80 border border-white/15 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="Folder name (e.g. Taxes, 2024)"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-400 transition-colors"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCreatingFolder(false)
-                    setNewFolderName('')
-                  }}
-                  className="px-2 py-1.5 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-              </form>
-            ) : (
+        <div className="flex items-center gap-2">
+          {onRereadFiles && fileNames?.length > 0 && fileNames.some((n) => fileContents[n]) && (
+            <button
+              type="button"
+              onClick={onRereadFiles}
+              disabled={rereadLoading}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+            >
+              <RefreshCw className={`w-4 h-4 ${rereadLoading ? 'animate-spin' : ''}`} />
+              {rereadLoading ? 'Re-reading…' : 'Re-read files'}
+            </button>
+          )}
+          {onCreateFolder && (creatingFolder ? (
+            <form onSubmit={handleSubmitNewFolder} className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border text-sm bg-white placeholder:opacity-60 focus:outline-none focus:ring-2 focus:ring-offset-0"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                placeholder="Folder name (e.g. Taxes, 2024)"
+              />
+              <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium btn-primary">
+                Add
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  setCreatingFolder(true)
+                  setCreatingFolder(false)
                   setNewFolderName('')
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-indigo-300 bg-indigo-500/20 border border-indigo-400/30 hover:bg-indigo-500/30 transition-colors"
+                className="px-2 py-1.5 rounded-lg text-sm transition-colors hover:bg-slate-100"
+                style={{ color: 'var(--text-muted)' }}
               >
-                <FolderPlus className="w-4 h-4" />
-                New folder
+                Cancel
               </button>
-            )}
-          </div>
-        )}
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setCreatingFolder(true)
+                setNewFolderName('')
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium btn-primary"
+            >
+              <FolderPlus className="w-4 h-4" />
+              New folder
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-5">
@@ -172,14 +237,14 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
           function handleDragOver(e) {
             e.preventDefault()
             e.dataTransfer.dropEffect = 'move'
-            e.currentTarget.classList.add('ring-2', 'ring-indigo-400/50', 'bg-indigo-500/10')
+            e.currentTarget.classList.add('ring-2', 'ring-sky-400/50', 'bg-sky-50')
           }
           function handleDragLeave(e) {
-            e.currentTarget.classList.remove('ring-2', 'ring-indigo-400/50', 'bg-indigo-500/10')
+            e.currentTarget.classList.remove('ring-2', 'ring-sky-400/50', 'bg-sky-50')
           }
           function handleDrop(e) {
             e.preventDefault()
-            e.currentTarget.classList.remove('ring-2', 'ring-indigo-400/50', 'bg-indigo-500/10')
+            e.currentTarget.classList.remove('ring-2', 'ring-sky-400/50', 'bg-sky-50')
             const fileName = e.dataTransfer.getData('text/plain')
             if (!fileName || !fileNames.includes(fileName)) return
             const targetFolder = isUnfiled ? '' : folderKey
@@ -189,17 +254,16 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
           return (
             <div
               key={folderKey}
-              className="rounded-2xl transition-all min-h-[80px]"
-              style={{ border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(15,23,42,0.8)' }}
+              className="card overflow-hidden transition-all min-h-[80px] p-0"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-2">
-                  <FolderIcon className="w-4 h-4 text-slate-400" />
+                  <FolderIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                   {isUnfiled ? (
-                    <p className="text-sm font-semibold text-slate-200">{label}</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{label}</p>
                   ) : isRenaming ? (
                     <input
                       autoFocus
@@ -225,7 +289,8 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                           setEditingFolderName('')
                         }
                       }}
-                      className="px-2 py-1 rounded-md bg-slate-900/80 border border-white/15 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="px-2 py-1 rounded-md border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-offset-0"
+                      style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                     />
                   ) : (
                     <button
@@ -234,21 +299,23 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                         setEditingFolder(folderKey)
                         setEditingFolderName(label)
                       }}
-                      className="text-sm font-semibold text-slate-200 hover:text-white hover:underline decoration-dotted underline-offset-2"
+                      className="text-sm font-semibold hover:opacity-80 hover:underline decoration-dotted underline-offset-2"
+                      style={{ color: 'var(--text-primary)' }}
                     >
                       {label}
                     </button>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {names.length} file{names.length !== 1 ? 's' : ''}
                   </p>
                   {!isUnfiled && onDeleteFolder && (
                     <button
                       type="button"
                       onClick={() => onDeleteFolder(folderKey)}
-                      className="text-slate-500 hover:text-red-400 transition-colors p-1 rounded"
+                      className="p-1 rounded transition-colors hover:text-red-600"
+                      style={{ color: 'var(--text-muted)' }}
                       title="Delete folder (files move to No folder)"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -256,10 +323,9 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                   )}
                 </div>
               </div>
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-slate-200">
                 {names.map((name) => {
                   const count = transactions.filter((t) => t.source === name).length
-                  const isPdf = /\.pdf$/i.test(name)
                   const folder = fileFolders[name] || ''
                   return (
                     <div
@@ -271,27 +337,18 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                         e.currentTarget.classList.add('opacity-60')
                       }}
                       onDragEnd={(e) => e.currentTarget.classList.remove('opacity-60')}
-                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02] cursor-grab active:cursor-grabbing"
+                      className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/80 cursor-grab active:cursor-grabbing"
                     >
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{
-                          background: isPdf ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-                          border: `1px solid ${isPdf ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
-                        }}
-                      >
-                        <FileText
-                          className="w-5 h-5"
-                          style={{ color: isPdf ? '#f87171' : '#4ade80' }}
-                        />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50 border border-emerald-200">
+                        <FileText className="w-5 h-5 text-emerald-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-200 truncate" title={name}>
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }} title={name}>
                           {name}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           {count} transaction{count !== 1 ? 's' : ''}
-                          <span className="ml-2 text-slate-600">· {isPdf ? 'PDF' : 'CSV'}</span>
+                          <span className="ml-2 opacity-70">· CSV</span>
                         </p>
                         <div className="mt-2">
                           <FolderBadge
@@ -303,7 +360,8 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
                       <button
                         type="button"
                         onClick={() => onRemoveFile(name)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors text-sm font-medium"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:text-red-600 hover:bg-red-50"
+                        style={{ color: 'var(--text-muted)' }}
                         title={`Remove ${name} from this profile`}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -318,7 +376,7 @@ export default function FilesPage({ fileNames, transactions, fileFolders = {}, f
         })}
       </div>
 
-      <p className="text-xs text-slate-600 mt-8">
+      <p className="text-sm mt-8" style={{ color: 'var(--text-muted)' }}>
         {fileNames.length} file{fileNames.length !== 1 ? 's' : ''} · {transactions.length} total transactions
       </p>
     </div>

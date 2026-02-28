@@ -89,35 +89,7 @@ export default function SpendingBreakdownPage({
     })
   }, [filtered, spending])
 
-  // Per-category and per-subcategory totals plus distinct months for avg per month (expenses only).
-  const bySubcategory = useMemo(() => {
-    const map = {}
-    for (const t of filtered) {
-      if (t.amount >= 0) continue
-      const cat = t.category || 'Uncategorized'
-      const sub = (t.subcategory || '').trim() || null
-      const ym = getYearMonthFromDate(t.date)
-      const monthKey = ym ? `${ym.year}-${ym.month}` : null
-      if (!map[cat]) map[cat] = { subs: {} }
-      if (sub) {
-        if (!map[cat].subs[sub]) map[cat].subs[sub] = { amount: 0, count: 0, months: new Set() }
-        map[cat].subs[sub].amount += Math.abs(t.amount)
-        map[cat].subs[sub].count += 1
-        if (monthKey) map[cat].subs[sub].months.add(monthKey)
-      }
-    }
-    // Convert Set to size and add avgPerMonth
-    for (const cat of Object.keys(map)) {
-      for (const sub of Object.keys(map[cat].subs)) {
-        const s = map[cat].subs[sub]
-        const monthsWithSpending = s.months.size
-        s.avgPerMonth = monthsWithSpending ? s.amount / monthsWithSpending : 0
-      }
-    }
-    return map
-  }, [filtered])
-
-  // Monthly spending with per-category and per-subcategory breakdown (expenses only, selected year).
+  // Monthly spending by category (expenses only, selected year).
   const monthlySpending = useMemo(() => {
     if (!filtered.length || selectedYear == null) return []
     const byMonth = {}
@@ -127,16 +99,11 @@ export default function SpendingBreakdownPage({
       if (!ym || ym.year !== selectedYear) continue
       const m = ym.month
       const cat = t.category || 'Uncategorized'
-      const sub = (t.subcategory || '').trim() || null
       const amt = Math.abs(t.amount)
       if (!byMonth[m]) byMonth[m] = { total: 0, byCategory: {} }
       byMonth[m].total += amt
-      if (!byMonth[m].byCategory[cat]) byMonth[m].byCategory[cat] = { amount: 0, bySub: {} }
+      if (!byMonth[m].byCategory[cat]) byMonth[m].byCategory[cat] = { amount: 0 }
       byMonth[m].byCategory[cat].amount += amt
-      if (sub) {
-        if (!byMonth[m].byCategory[cat].bySub[sub]) byMonth[m].byCategory[cat].bySub[sub] = 0
-        byMonth[m].byCategory[cat].bySub[sub] += amt
-      }
     }
     return Object.entries(byMonth)
       .map(([month, data]) => ({
@@ -305,8 +272,6 @@ export default function SpendingBreakdownPage({
               spendingWithAvg.map(({ name, amount, count, monthsWithSpending, avgPerMonth }) => {
                 const pct = totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(1) : 0
                 const color = getColor(name)
-                const subs = bySubcategory[name]?.subs ? Object.entries(bySubcategory[name].subs) : []
-                const sortedSubs = [...subs].sort((a, b) => b[1].amount - a[1].amount)
                 return (
                   <div key={name}>
                     <div
@@ -338,25 +303,6 @@ export default function SpendingBreakdownPage({
                         )}
                       </div>
                     </div>
-                    {sortedSubs.length > 0 && (
-                      <div className="pl-8 pr-5 pb-3 flex flex-col gap-1.5" style={{ background: 'rgba(0,0,0,0.15)' }}>
-                        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider pt-1">Subcategories</p>
-                        {sortedSubs.map(([subName, { amount: subAmt, count: subCount, avgPerMonth = 0 }]) => (
-                          <div key={subName} className="flex items-center justify-between py-1">
-                            <span className="text-xs text-slate-400">{subName}</span>
-                            <div className="text-right">
-                              <span className="text-xs font-mono text-red-400/90">
-                                {fmt(-subAmt)}
-                                <span className="text-slate-500 font-normal ml-1">({subCount})</span>
-                              </span>
-                              {avgPerMonth > 0 && (
-                                <p className="text-[11px] text-slate-500 font-mono mt-0.5">avg {fmt(avgPerMonth)}/mo</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )
               })
@@ -372,7 +318,7 @@ export default function SpendingBreakdownPage({
           >
             <div className="px-5 py-4 border-b border-white/10">
               <h2 className="font-semibold text-white">Spending by month</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Expenses only · {selectedYear} · by category & subcategory</p>
+              <p className="text-xs text-slate-500 mt-0.5">Expenses only · {selectedYear} · by category</p>
             </div>
             <div className="divide-y divide-white/5">
               {monthlySpending.map(({ month, label, amount, byCategory }) => {
@@ -388,28 +334,13 @@ export default function SpendingBreakdownPage({
                       <p className="text-sm font-mono font-semibold text-red-400">{fmt(-amount)}</p>
                     </div>
                     <div className="pl-2 space-y-2">
-                      {cats.map(([catName, { amount: catAmt, bySub }]) => {
+                      {cats.map(([catName, { amount: catAmt }]) => {
                         const color = getColor(catName)
-                        const subs = bySub && Object.keys(bySub).length > 0
-                          ? Object.entries(bySub).sort((a, b) => b[1] - a[1])
-                          : []
                         return (
-                          <div key={catName}>
-                            <div className="flex items-center justify-between py-0.5">
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                              <span className="text-xs text-slate-400 flex-1 ml-2">{catName}</span>
-                              <span className="text-xs font-mono text-red-400/90">{fmt(-catAmt)}</span>
-                            </div>
-                            {subs.length > 0 && (
-                              <div className="ml-4 mt-0.5 space-y-0.5">
-                                {subs.map(([subName, subAmt]) => (
-                                  <div key={subName} className="flex items-center justify-between py-0.5">
-                                    <span className="text-[11px] text-slate-500">{subName}</span>
-                                    <span className="text-[11px] font-mono text-slate-400">{fmt(-subAmt)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                          <div key={catName} className="flex items-center justify-between py-0.5">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                            <span className="text-xs text-slate-400 flex-1 ml-2">{catName}</span>
+                            <span className="text-xs font-mono text-red-400/90">{fmt(-catAmt)}</span>
                           </div>
                         )
                       })}

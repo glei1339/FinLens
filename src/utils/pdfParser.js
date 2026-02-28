@@ -31,8 +31,14 @@ function tryExtractDate(text) {
   return null
 }
 
-// --- Amount extraction operating on individual text items (preserves x position) ---
-const AMOUNT_ITEM_RE = /(\(\$?(\d{1,3}(?:,\d{3})*\.\d{2})\))|(-?\$?(\d{1,3}(?:,\d{3})*\.\d{2}))/g
+// --- Amount extraction: support $1,234.56, (1,234.56), 12.50, -12.50, etc. ---
+const AMOUNT_ITEM_RE = /(\(\$?([\d,]+\.\d{2})\))|(-?\$?([\d,]+\.\d{2}))/g
+
+function parseAmountRaw(str) {
+  if (!str || typeof str !== 'string') return NaN
+  const numStr = str.replace(/,/g, '').trim()
+  return parseFloat(numStr) || NaN
+}
 
 function extractAmountsFromItems(items) {
   const amounts = []
@@ -41,12 +47,14 @@ function extractAmountsFromItems(items) {
     AMOUNT_ITEM_RE.lastIndex = 0
     while ((m = AMOUNT_ITEM_RE.exec(item.text)) !== null) {
       if (m[1]) {
-        // Parentheses notation → always negative
-        amounts.push({ value: -parseFloat(m[2].replace(/,/g, '')), x: item.x, raw: m[1] })
+        const val = parseAmountRaw(m[2])
+        if (!isNaN(val)) amounts.push({ value: -Math.abs(val), x: item.x, raw: m[1] })
       } else if (m[3]) {
-        const numStr = m[4].replace(/,/g, '')
-        const isNeg  = m[3].trimStart().startsWith('-')
-        amounts.push({ value: isNeg ? -parseFloat(numStr) : parseFloat(numStr), x: item.x, raw: m[3] })
+        const val = parseAmountRaw(m[4])
+        if (!isNaN(val)) {
+          const isNeg = m[3].trimStart().startsWith('-')
+          amounts.push({ value: isNeg ? -Math.abs(val) : val, x: item.x, raw: m[3] })
+        }
       }
     }
   }
@@ -54,7 +62,8 @@ function extractAmountsFromItems(items) {
 }
 
 // --- Group flat list of text items into visual rows by y-coordinate ---
-function groupIntoRows(items, yTolerance = 4) {
+// Use a looser tolerance (8pt) so PDFs with slight vertical variance still group correctly.
+function groupIntoRows(items, yTolerance = 8) {
   const rows = []
   const sorted = [...items].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x)
 
@@ -175,6 +184,16 @@ function parseRow(row, cols) {
   if (NON_TRANSACTION_PHRASES.some(p => lowerDesc.includes(p))) return null
   if (looksLikeDisclaimer(desc)) return null
 
+  // Many bank statements (e.g. TD Bank) list payments as positive numbers under an
+  // "Electronic Payments" or similar section. If the row text clearly indicates a
+  // payment/debit/withdrawal, negate a positive amount.
+  const rowLower = (row.text || '').toLowerCase()
+  const isPaymentRow = amount > 0 && (
+    /electronic\s*pmt|pmt-web|ach\s+debit|ccd\s+debit|billpay|withdrawal|withdraw|debit\s+card|payment\s+to\b/i.test(rowLower) ||
+    /\bdebit\b.*\b(ach|ccd|pmt)\b/i.test(rowLower)
+  )
+  if (isPaymentRow) amount = -Math.abs(amount)
+
   return { date, description: desc, amount }
 }
 
@@ -210,6 +229,14 @@ const NON_TRANSACTION_PHRASES = [
   'payment due date of ,',
   'same date your bank',
   'as of .',
+  // Balance summary lines — not individual transactions
+  'ending balance',
+  'beginning balance',
+  'opening balance',
+  'closing balance',
+  'starting balance',
+  'total balance',
+  'account balance',
 ]
 
 // Words that commonly appear in disclaimer/instruction text rather than in merchant names.
@@ -253,13 +280,15 @@ function looksLikeDisclaimer(desc) {
   return false
 }
 
+// Order matters: check statement-issuer names first so we don't match a payee in transaction text.
 const INSTITUTION_PATTERNS = [
+  { name: 'TD Bank',          patterns: [/\btd\s+bank\b/i, /tdbank\.com/i] },
+  { name: 'American Express', patterns: [/american\s*express/i, /americanexpress\.com/i, /\bamex\b/i] },
   { name: 'Chase',            patterns: [/jpmorgan chase/i, /\bchase\b/i] },
   { name: 'Bank of America',  patterns: [/bank of america/i, /\bbofa\b/i] },
   { name: 'Wells Fargo',      patterns: [/wells fargo/i] },
   { name: 'Capital One',      patterns: [/capital one/i] },
   { name: 'Citi',             patterns: [/\bciti\s*bank/i, /\bciti\b/i, /citibank/i] },
-  { name: 'American Express', patterns: [/american express/i, /\bamex\b/i] },
   { name: 'Discover',         patterns: [/discover bank/i, /\bdiscover\b/i] },
 ]
 
@@ -279,8 +308,30 @@ function detectInstitutionFromText(fullText, fileName = '') {
   if (lowerName.includes('citi')) return 'Citi'
   if (lowerName.includes('amex') || lowerName.includes('americanexpress')) return 'American Express'
   if (lowerName.includes('discover')) return 'Discover'
+  if (lowerName.includes('tdbank') || lowerName.includes('td bank')) return 'TD Bank'
 
   return 'Unknown'
+}
+
+/** Extract last 4 digits of account/card from statement text. Prefer explicit account # or "Account Ending". */
+function detectAccountLast4FromText(fullText) {
+  const text = fullText || ''
+  // "Primary Account #: 435-9511742", "Account # 435-9511742"
+  let accountMatch = text.match(/(?:primary\s+)?account\s*#?\s*[:\s]*([\d\-]+)/i)
+  if (!accountMatch) {
+    // American Express etc.: "Account Ending 5-42005" → last 4 of 42005 = 2005
+    accountMatch = text.match(/account\s+ending\s+[\d\-]+(\d{4,})\b/i) || text.match(/account\s+ending\s+([\d\-]+)/i)
+  }
+  if (accountMatch) {
+    const digits = accountMatch[1].replace(/\D/g, '')
+    if (digits.length >= 4) return digits.slice(-4)
+  }
+  // "ending in 1234", "****1234"
+  const m = text.match(/(?:ending\s+in?\s+|[*•·]\s*)(\d{4})\b/) || text.match(/\b(\d{4})\s*(?:\)|$|\s)/)
+  if (m) return m[1]
+  const last4 = text.match(/(\d{4})/g)
+  if (last4 && last4.length > 0) return last4[last4.length - 1]
+  return ''
 }
 
 function isCreditCardStatement(fullText) {
@@ -349,20 +400,53 @@ export async function parsePDF(file) {
   })
   filtered.forEach((t, i) => { t.id = i })
 
+  const options = arguments[1] || {}
+  const apiKey = options.apiKey && String(options.apiKey).trim()
+  const useAiFallback = apiKey && options.useAiFallback !== false
+
+  // When API key is set, use AI first to read the statement (correct institution, account number, transactions).
+  if (useAiFallback && allText.trim().length > 0) {
+    try {
+      const onProgress = options.onProgress
+      if (typeof onProgress === 'function') onProgress('AI: Reading statement…')
+      const { extractTransactionsFromPDFText } = await import('./aiClassifier.js')
+      const aiResult = await extractTransactionsFromPDFText(allText, apiKey)
+      const aiTx = aiResult?.transactions
+      if (aiTx && aiTx.length > 0) {
+        const institution = (aiResult.institution && aiResult.institution.trim()) || detectInstitutionFromText(allText, file.name)
+        const accountLast4 = (aiResult.accountLast4 && String(aiResult.accountLast4).replace(/\D/g, '').slice(-4)) || detectAccountLast4FromText(allText)
+        aiTx.forEach((t, i) => {
+          t.id = i
+          t.institution = institution
+          if (accountLast4) t.accountLast4 = accountLast4
+        })
+        return aiTx
+      }
+    } catch (_) {
+      // Fall through to layout parsing
+    }
+  }
+
   if (filtered.length === 0) {
     throw new Error(
-      'No transactions were found in this PDF. The layout may be unusual or the file may be password-protected.\n\nTip: Try downloading your statement as CSV from your bank\'s website for best results.'
+      'No transactions were found in this PDF. The layout may be unusual or the file may be password-protected.\n\nTip: Try downloading your statement as CSV from your bank\'s website for best results. If you have an API key set and "Use AI" enabled, AI extraction will be tried first.'
     )
   }
 
   const institution = detectInstitutionFromText(allText, file.name)
-  filtered.forEach(t => { t.institution = institution })
+  const accountLast4 = detectAccountLast4FromText(allText)
+  filtered.forEach(t => {
+    t.institution = institution
+    if (accountLast4) t.accountLast4 = accountLast4
+  })
 
   // Credit card PDFs list charges as positive and payments as negative —
-  // the opposite of what we want. Flip signs when we detect a CC statement
-  // and the PDF didn't use explicit separate debit/credit columns (which
-  // already produce correct signs).
-  if (isCreditCardStatement(allText) && !hadDebitCreditCols) {
+  // the opposite of what we want. Flip signs only when we detect a CC statement
+  // and the PDF didn't use explicit separate debit/credit columns.
+  // Do NOT flip when the statement is a bank account with "Electronic Deposits"
+  // / "Electronic Payments" (or similar) sections — we already signed those in parseRow.
+  const hasBankAccountSections = /electronic\s+deposits|electronic\s+payments|deposits\s+and\s+credits|withdrawals\s+and\s+debits/i.test(allText)
+  if (isCreditCardStatement(allText) && !hadDebitCreditCols && !hasBankAccountSections) {
     filtered.forEach(t => { t.amount = -t.amount })
   }
 

@@ -10,11 +10,12 @@ export default function YearFilter({ transactions, activeYear, onChange, compact
     <div className="flex flex-wrap items-center gap-2">
       <button
         onClick={() => onChange(null)}
-        className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border ${
+        className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
           activeYear == null
-            ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/25'
-            : 'bg-white/5 text-slate-400 border-white/8 hover:border-white/20 hover:text-slate-200'
+            ? 'text-white border-transparent shadow-sm'
+            : 'hover:bg-[var(--border-subtle)]'
         }`}
+        style={activeYear == null ? { background: 'var(--accent)' } : { borderColor: 'var(--border)', color: 'var(--text-primary)' }}
       >
         All years{!compact && ` · ${transactions.length}`}
       </button>
@@ -25,11 +26,16 @@ export default function YearFilter({ transactions, activeYear, onChange, compact
           <button
             key={year}
             onClick={() => onChange(isActive ? null : year)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border ${
+            className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border ${
               isActive
-                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/50'
-                : 'bg-white/5 text-slate-400 border-white/8 hover:border-white/20 hover:text-slate-200'
+                ? 'border-transparent text-white shadow-sm'
+                : 'hover:bg-[var(--border-subtle)]'
             }`}
+            style={
+              isActive
+                ? { background: 'var(--accent)' }
+                : { borderColor: 'var(--border)', color: 'var(--text-primary)' }
+            }
           >
             {year}{!compact && ` · ${count}`}
           </button>
@@ -40,9 +46,11 @@ export default function YearFilter({ transactions, activeYear, onChange, compact
 
   if (compact) {
     return (
-      <div className="flex items-center gap-3">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-          <Calendar className="w-3.5 h-3.5" />
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <span className="flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-light)' }}>
+            <Calendar className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+          </span>
           Year
         </span>
         {pills}
@@ -51,11 +59,8 @@ export default function YearFilter({ transactions, activeYear, onChange, compact
   }
 
   return (
-    <div
-      className="rounded-2xl p-4 mb-4 animate-fade-up"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
-      <h2 className="text-sm font-semibold text-slate-300 mb-3">Filter by Year</h2>
+    <div className="card p-5 mb-6 animate-fade-up">
+      <h2 className="text-sm font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Filter by year</h2>
       {pills}
     </div>
   )

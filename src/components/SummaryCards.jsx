@@ -1,89 +1,107 @@
 import React from 'react'
-import { TrendingDown, TrendingUp, Activity, Layers } from 'lucide-react'
+import { DollarSign, Calendar, Receipt } from 'lucide-react'
+import { getYearMonthFromDate } from '../utils/dateHelpers'
 
 function fmt(n) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Math.abs(n))
 }
 
-function Card({ label, value, sub, icon: Icon, gradient, iconBg, valueColor, delay }) {
-  return (
-    <div
-      className="relative overflow-hidden rounded-2xl p-5 animate-fade-up"
-      style={{
-        background: gradient,
-        animationDelay: delay,
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      {/* Shine overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
-
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2">{label}</p>
-          <p className={`text-2xl font-bold tracking-tight ${valueColor}`}>{value}</p>
-          {sub && <p className="text-xs text-white/40 mt-1">{sub}</p>}
-        </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
-          <Icon className="w-5 h-5 text-white" />
-        </div>
-      </div>
-    </div>
-  )
+function fmtCompact(n) {
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return '$' + (abs / 1_000_000).toFixed(2) + 'M'
+  if (abs >= 1_000) return '$' + (abs / 1_000).toFixed(1) + 'k'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(abs)
 }
 
-export default function SummaryCards({ transactions }) {
-  const income   = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0)
-  const expenses = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
-  const net      = income + expenses
-  const uncategorized = transactions.filter((t) => t.category === 'Uncategorized').length
+/** Only expenses: amount < 0 and category not in excluded list */
+function getExpenses(transactions, excludedCategories = []) {
+  const excluded = new Set((excludedCategories || []).map((c) => (c || '').trim()))
+  return (transactions || []).filter((t) => {
+    if (t.amount >= 0) return false
+    const cat = (t.category || 'Uncategorized').trim()
+    return !excluded.has(cat)
+  })
+}
+
+export default function SummaryCards({ transactions, excludedCategories }) {
+  const expenses = getExpenses(transactions, excludedCategories)
+  const totalSpent = expenses.reduce((s, t) => s + Math.abs(t.amount), 0)
+  const count = expenses.length
+
+  // Average per month: group by year-month, then average
+  const byMonth = {}
+  for (const t of expenses) {
+    const ym = getYearMonthFromDate(t.date)
+    if (!ym) continue
+    const key = `${ym.year}-${String(ym.month).padStart(2, '0')}`
+    byMonth[key] = (byMonth[key] || 0) + Math.abs(t.amount)
+  }
+  const monthCount = Object.keys(byMonth).length
+  const avgPerMonth = monthCount > 0 ? totalSpent / monthCount : 0
+
+  const uncategorized = expenses.filter((t) => t.category === 'Uncategorized').length
+  const categorizedPct = count > 0 ? (((count - uncategorized) / count) * 100).toFixed(0) : 100
+
+  if (count === 0) {
+    return (
+      <div className="mb-10 animate-fade-up">
+        <div className="card p-8 text-center">
+          <p className="stat-label mb-2">No expenses yet</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Upload a CSV to see your expense breakdown here.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <Card
-        label="Total Credits"
-        value={fmt(income)}
-        sub="Deposits, refunds & credits"
-        icon={TrendingUp}
-        gradient="linear-gradient(135deg, rgba(34,197,94,0.2) 0%, rgba(16,185,129,0.12) 100%)"
-        iconBg="bg-emerald-500/30"
-        valueColor="text-emerald-400"
-        delay="0s"
-      />
-      <Card
-        label="Total Debits"
-        value={fmt(expenses)}
-        sub="Charges, payments & fees"
-        icon={TrendingDown}
-        gradient="linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(220,38,38,0.12) 100%)"
-        iconBg="bg-red-500/30"
-        valueColor="text-red-400"
-        delay="0.08s"
-      />
-      <Card
-        label="Net Balance"
-        value={(net >= 0 ? '+' : '-') + fmt(net)}
-        sub={net >= 0 ? 'Credits exceed debits' : 'Debits exceed credits'}
-        icon={Activity}
-        gradient={
-          net >= 0
-            ? 'linear-gradient(135deg, rgba(99,102,241,0.25) 0%, rgba(79,70,229,0.15) 100%)'
-            : 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(217,119,6,0.12) 100%)'
-        }
-        iconBg={net >= 0 ? 'bg-indigo-500/30' : 'bg-amber-500/30'}
-        valueColor={net >= 0 ? 'text-indigo-300' : 'text-amber-400'}
-        delay="0.16s"
-      />
-      <Card
-        label="Transactions"
-        value={transactions.length}
-        sub={uncategorized > 0 ? `${uncategorized} uncategorized` : '✓ All categorized'}
-        icon={Layers}
-        gradient="linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(109,40,217,0.12) 100%)"
-        iconBg="bg-violet-500/30"
-        valueColor="text-violet-300"
-        delay="0.24s"
-      />
+    <div className="mb-10 animate-fade-up">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
+          <p className="stat-label flex items-center gap-2 mb-2">
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--danger-light)' }}>
+              <DollarSign className="w-4 h-4" style={{ color: 'var(--danger)' }} />
+            </span>
+            Total spent
+          </p>
+          <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--danger)' }}>{fmtCompact(totalSpent)}</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>All expenses in this period</p>
+        </div>
+
+        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
+          <p className="stat-label flex items-center gap-2 mb-2">
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-light)' }}>
+              <Calendar className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+            </span>
+            Avg per month
+          </p>
+          <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--accent)' }}>{fmtCompact(avgPerMonth)}</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>{monthCount} month{monthCount !== 1 ? 's' : ''} of data</p>
+        </div>
+
+        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
+          <p className="stat-label flex items-center gap-2 mb-2">
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--border-subtle)' }}>
+              <Receipt className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+            </span>
+            Expenses
+          </p>
+          <p className="stat-value">{count.toLocaleString()}</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
+            {uncategorized > 0 ? `${uncategorized} uncategorized` : 'All categorized'}
+          </p>
+          <div className="mt-4 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border-subtle)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${categorizedPct}%`, background: 'var(--accent)' }}
+            />
+          </div>
+          <p className="text-xs font-medium mt-2" style={{ color: 'var(--text-muted)' }}>
+            {categorizedPct}% categorized
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

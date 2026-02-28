@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Plus, Trash2, Check } from 'lucide-react'
 
-export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCreate, onDelete }) {
+export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCreate, onDelete, variant }) {
   const [open, setOpen]       = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName]  = useState('')
   const inputRef = useRef(null)
+  const isSidebar = variant === 'sidebar'
 
   const active = profiles.find(p => p.id === activeProfileId) || profiles[0]
 
@@ -32,57 +33,49 @@ export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCrea
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 hover:bg-white/10"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8' }}
+        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all w-full justify-between ${isSidebar ? 'border-0' : 'border hover:shadow-sm'}`}
+        style={isSidebar ? { color: 'var(--sidebar-text)', background: 'transparent' } : { borderColor: 'var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' }}
       >
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: active.color }} />
-        <span className="text-slate-300 max-w-[140px] truncate">{active.name}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: active.color }} />
+        <span className={`truncate ${isSidebar ? 'flex-1 text-left' : 'max-w-[140px]'}`}>{active.name}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`} style={{ color: isSidebar ? 'var(--sidebar-text)' : 'var(--text-muted)' }} />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={close} />
           <div
-            className="absolute right-0 top-full mt-2 w-52 rounded-xl z-20 overflow-hidden"
-            style={{
-              background: 'rgba(13,15,26,0.98)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-            }}
+            className={`absolute top-full mt-2 w-56 rounded-xl z-20 overflow-hidden border shadow-lg ${isSidebar ? 'left-0' : 'right-0'}`}
+            style={{ background: isSidebar ? 'var(--sidebar-bg)' : 'var(--bg-card)', borderColor: isSidebar ? 'var(--sidebar-border)' : 'var(--border)' }}
           >
-            {/* Profile list */}
-            <div className="p-1.5">
+            <div className="p-2">
               {profiles.map(p => (
                 <div
                   key={p.id}
-                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer group transition-colors hover:bg-white/8"
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${isSidebar ? 'hover:bg-[var(--sidebar-bg-hover)]' : 'hover:bg-[var(--border-subtle)]'}`}
                   onClick={() => { onSwitch(p.id); close() }}
                 >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
-                  <span className="text-sm text-slate-300 flex-1 truncate">{p.name}</span>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                  <span className="text-sm flex-1 truncate" style={{ color: isSidebar ? 'var(--sidebar-text-active)' : 'var(--text-primary)' }}>{p.name}</span>
                   {p.id === activeProfileId
-                    ? <Check className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                    ? <Check className="w-4 h-4 flex-shrink-0" style={{ color: isSidebar ? 'var(--sidebar-accent)' : 'var(--accent)' }} />
                     : profiles.length > 1 && (
                       <button
                         onClick={e => { e.stopPropagation(); onDelete(p.id) }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-700 hover:text-red-400 transition-all flex-shrink-0"
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0 p-0.5 rounded"
                         title={`Delete "${p.name}"`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )
                   }
                 </div>
               ))}
             </div>
-
-            {/* Create new */}
-            <div className="p-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="p-2 border-t" style={{ borderColor: isSidebar ? 'var(--sidebar-border)' : 'var(--border-subtle)' }}>
               {creating ? (
-                <div className="flex items-center gap-2 px-2.5 py-1.5">
-                  <Plus className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <Plus className="w-4 h-4 flex-shrink-0" style={{ color: isSidebar ? 'var(--sidebar-text)' : 'var(--text-muted)' }} />
                   <input
                     ref={inputRef}
                     value={newName}
@@ -92,11 +85,13 @@ export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCrea
                       if (e.key === 'Escape') { setCreating(false); setNewName('') }
                     }}
                     placeholder="Profile name…"
-                    className="flex-1 bg-transparent text-sm text-white placeholder-slate-700 outline-none min-w-0"
+                    className="flex-1 bg-transparent text-sm outline-none min-w-0 placeholder:opacity-60 font-medium"
+                    style={{ color: isSidebar ? 'var(--sidebar-text-active)' : 'var(--text-primary)' }}
                   />
                   <button
                     onClick={submit}
-                    className="text-xs font-medium text-indigo-400 hover:text-indigo-300 flex-shrink-0"
+                    className="text-sm font-semibold flex-shrink-0"
+                    style={{ color: isSidebar ? 'var(--sidebar-accent)' : 'var(--accent)' }}
                   >
                     Add
                   </button>
@@ -104,9 +99,10 @@ export default function ProfileBar({ profiles, activeProfileId, onSwitch, onCrea
               ) : (
                 <button
                   onClick={() => setCreating(true)}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm text-slate-500 hover:text-slate-300 transition-colors hover:bg-white/8"
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${isSidebar ? 'hover:bg-[var(--sidebar-bg-hover)]' : 'hover:bg-[var(--border-subtle)]'}`}
+                  style={{ color: isSidebar ? 'var(--sidebar-text)' : 'var(--text-muted)' }}
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   New Profile
                 </button>
               )}

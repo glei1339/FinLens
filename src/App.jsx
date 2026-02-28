@@ -1,18 +1,23 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { Upload, Sparkles, FileText, AlertTriangle, X } from 'lucide-react'
+import { Upload, Sparkles, FileText, X, LayoutDashboard, List, FolderOpen, Settings, Sliders, Menu } from 'lucide-react'
 import UploadZone from './components/UploadZone'
 import SummaryCards from './components/SummaryCards'
 import SpendingChart from './components/SpendingChart'
+import RecentActivity from './components/RecentActivity'
+import MonthlyOverview from './components/MonthlyOverview'
 import YearFilter from './components/YearFilter'
 import SpendingBreakdownSection from './components/SpendingBreakdownSection'
 import TransactionsPage from './components/TransactionsPage'
 import FilesPage from './components/FilesPage'
 import RulesPage from './components/RulesPage'
+import SettingsPage from './components/SettingsPage'
 import { getYearFromDate, getUniqueYears, getYearMonthFromDate } from './utils/dateHelpers'
 import ProfileBar from './components/ProfileBar'
-import { parseCSV } from './utils/csvParser'
-import { parsePDF } from './utils/pdfParser'
+import { parseCSV, parseCSVFromString } from './utils/csvParser'
 import { categorizeAll, needsSignFlip, CATEGORIES, CATEGORY_COLORS } from './utils/categorizer'
+import { classifyDepositsAndPayments, categorizeTransactionsWithAI } from './utils/aiClassifier'
+
+const AI_API_KEY_STORAGE = 'finlens-openai-api-key'
 
 const PROFILE_COLORS = [
   '#6366f1', '#22c55e', '#f97316', '#ec4899',
@@ -43,6 +48,8 @@ function applyUserRules(transactions, rules) {
   })
 }
 
+const DEFAULT_EXCLUDED_CATEGORIES = ['Transfers']
+
 function newProfile(name, colorIdx = 0) {
   return {
     id: crypto.randomUUID(),
@@ -50,11 +57,12 @@ function newProfile(name, colorIdx = 0) {
     color: PROFILE_COLORS[colorIdx % PROFILE_COLORS.length],
     transactions: null,
     fileNames: [],
-    isPdf: false,
+    fileContents: {},
     customCategories: [],
     fileFolders: {},
     folders: [],
     rules: [],
+    excludedCategories: [...DEFAULT_EXCLUDED_CATEGORIES],
   }
 }
 
@@ -63,7 +71,12 @@ function initProfiles() {
     const raw = localStorage.getItem('finlens-profiles')
     if (raw) {
       const saved = JSON.parse(raw)
-      if (Array.isArray(saved) && saved.length > 0) return saved
+      if (Array.isArray(saved) && saved.length > 0) {
+        return saved.map((p) => ({
+          ...p,
+          excludedCategories: Array.isArray(p.excludedCategories) ? p.excludedCategories : [...DEFAULT_EXCLUDED_CATEGORIES],
+        }))
+      }
     }
   } catch {}
   return [newProfile('Personal', 0)]
@@ -80,28 +93,55 @@ export default function App() {
   const [loading,        setLoading]        = useState(false)
   const [loadingFile,    setLoadingFile]    = useState('')
   const [error,          setError]          = useState(null)
+  const [aiProcessedMsg,  setAiProcessedMsg] = useState(null) // brief "Processed with AI" after upload
   const [activeCategory, setActiveCategory] = useState(null)
   const [activeYear,     setActiveYear]     = useState(null)
   const [activeMonth,    setActiveMonth]    = useState(null) // 1–12 or null
-  const [view,           setView]           = useState('dashboard') // 'dashboard' | 'transactions' | 'files' | 'rules'
+  const [view,           setView]           = useState('dashboard') // 'dashboard' | 'transactions' | 'files' | 'rules' | 'settings'
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [ruleModalOpen,   setRuleModalOpen]   = useState(false)
   const [ruleModalDraft,  setRuleModalDraft]  = useState(null)
+  const [activeFileYear,  setActiveFileYear]  = useState(null) // year filter on Files page (null = all)
+  const [openaiApiKey, setOpenaiApiKeyState] = useState(() => typeof localStorage !== 'undefined' ? (localStorage.getItem(AI_API_KEY_STORAGE) || '') : '')
+  const [useAIAnalysis, setUseAIAnalysis] = useState(false)
+  const [duplicateModal, setDuplicateModal] = useState({ open: false, files: null, duplicateNames: [] })
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const setOpenaiApiKey = useCallback((key) => {
+    setOpenaiApiKeyState(key)
+    try { localStorage.setItem(AI_API_KEY_STORAGE, key || '') } catch (_) {}
+  }, [])
 
   const active = profiles.find(p => p.id === activeId) || profiles[0]
   const {
     transactions,
     fileNames,
-    isPdf,
     customCategories = [],
     fileFolders = {},
     folders = [],
     rules = [],
+    excludedCategories = DEFAULT_EXCLUDED_CATEGORIES,
   } = active
 
   const allCategories = React.useMemo(
     () => [...CATEGORIES, ...customCategories.map((c) => c.name)],
     [customCategories]
+  )
+
+  // Categories that appear in at least one transaction (for Settings excluded list).
+  const usedCategories = React.useMemo(() => {
+    const set = new Set()
+    for (const t of transactions || []) {
+      const c = (t.category || 'Uncategorized').trim()
+      if (c) set.add(c)
+    }
+    return [...set].sort()
+  }, [transactions])
+
+  // Show only used + currently excluded (so excluded can be toggled off).
+  const categoriesForExcludedUI = React.useMemo(
+    () => [...new Set([...usedCategories, ...(excludedCategories || []).map((c) => (c || '').trim())].filter(Boolean))].sort(),
+    [usedCategories, excludedCategories]
   )
 
   const filteredByYear = !transactions
@@ -119,6 +159,18 @@ export default function App() {
           const ym = getYearMonthFromDate(t.date)
           return ym && ym.month === activeMonth
         })
+
+  // Expense-only: amount < 0 and not in excluded categories (app is an expense tracker).
+  const excludedSet = React.useMemo(() => new Set((excludedCategories || []).map((c) => (c || '').trim())), [excludedCategories])
+  const isExpense = (t) => {
+    if (t.amount >= 0) return false
+    const cat = (t.category || 'Uncategorized').trim()
+    return !excludedSet.has(cat)
+  }
+  const expenseOnlyForTransactions = React.useMemo(
+    () => (filteredForTransactions ? filteredForTransactions.filter(isExpense) : []),
+    [filteredForTransactions]
+  )
 
   // Months available for the current year selection (used in Transactions page month filter).
   // When viewing \"All years\" (activeYear == null), we hide the month filter entirely.
@@ -150,6 +202,7 @@ export default function App() {
     setActiveCategory(null)
     setActiveYear(null)
     setActiveMonth(null)
+    setActiveFileYear(null)
     setError(null)
   }
 
@@ -158,6 +211,7 @@ export default function App() {
     setActiveCategory(null)
     setActiveYear(null)
     setActiveMonth(null)
+    setActiveFileYear(null)
     setError(null)
   }
 
@@ -188,6 +242,14 @@ export default function App() {
     }))
   }, [activeId])
 
+  const handleExcludedCategoriesChange = useCallback((nextExcluded) => {
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === activeId ? { ...p, excludedCategories: nextExcluded } : p
+      )
+    )
+  }, [activeId])
+
   // ── File upload ─────────────────────────────────────────────────────────────
 
   const handleFiles = useCallback(async (files) => {
@@ -195,19 +257,20 @@ export default function App() {
     setError(null)
     setActiveCategory(null)
     setActiveMonth(null)
+    setActiveFileYear(null)
 
     const names   = files.map(f => f.name)
-    const hasPdf  = files.some(f => /\.pdf$/i.test(f.name))
     const parseErrors = []
     let idOffset = 0
     const allTxs = []
+    const fileContents = {}
 
     for (const file of files) {
       setLoadingFile(file.name)
       try {
-        const isPdfFile = /\.pdf$/i.test(file.name)
-        let parsed = isPdfFile ? await parsePDF(file) : await parseCSV(file)
-        if (needsSignFlip(parsed)) parsed = parsed.map(t => ({ ...t, amount: -t.amount }))
+        const text = await file.text()
+        const parsed = await parseCSVFromString(text, file.name)
+        fileContents[file.name] = text
         parsed.forEach((t, i) => allTxs.push({ ...t, id: idOffset + i, source: file.name }))
         idOffset += parsed.length
       } catch (err) {
@@ -215,44 +278,94 @@ export default function App() {
       }
     }
 
+    let finalTxs = allTxs
+    if (allTxs.length > 0) {
+      const useAI = useAIAnalysis && openaiApiKey && openaiApiKey.trim()
+      if (useAI) {
+        try {
+          setLoadingFile('AI: Classifying deposits vs payments…')
+          finalTxs = await classifyDepositsAndPayments(allTxs, openaiApiKey.trim(), (msg) => setLoadingFile(msg))
+        } catch (err) {
+          setError((e) => (e ? e + '\n' : '') + `AI analysis failed: ${err.message}`)
+        }
+      } else if (needsSignFlip(allTxs) && !allTxs.some(t => (t.institution || '').toLowerCase() === 'chase')) {
+        // Chase CSVs already have correct signs from the parser; don't flip (avoids wrong flip when rent income is categorized as Housing)
+        finalTxs = allTxs.map(t => ({ ...t, amount: -t.amount }))
+      }
+    }
+
+    let base = null
+    if (finalTxs.length > 0) {
+      const useAI = useAIAnalysis && openaiApiKey && openaiApiKey.trim()
+      if (useAI) {
+        try {
+          setLoadingFile('AI: Categorizing transactions…')
+          base = await categorizeTransactionsWithAI(finalTxs, allCategories, openaiApiKey.trim(), (msg) => setLoadingFile(msg))
+        } catch (err) {
+          setError((e) => (e ? e + '\n' : '') + `AI categorization failed: ${err.message}`)
+          base = categorizeAll(finalTxs)
+        }
+      } else {
+        base = categorizeAll(finalTxs)
+      }
+    }
+
     setLoadingFile('')
     if (parseErrors.length) setError(parseErrors.join('\n'))
 
     setProfiles(prev => prev.map(p => {
       if (p.id !== activeId) return p
-      const base = allTxs.length ? categorizeAll(allTxs) : null
       const withRules = base ? applyUserRules(base, p.rules || []) : null
       return {
         ...p,
         transactions: withRules,
         fileNames: names,
-        isPdf: hasPdf,
+        fileContents: { ...(p.fileContents || {}), ...fileContents },
       }
     }))
 
+    if (useAIAnalysis && openaiApiKey?.trim() && allTxs.length > 0) {
+      setAiProcessedMsg('Processed with AI: deposits, payments & categories')
+      setTimeout(() => setAiProcessedMsg(null), 5000)
+    }
     setLoading(false)
-  }, [activeId])
+  }, [activeId, useAIAnalysis, openaiApiKey, allCategories])
 
-  const handleAddFiles = useCallback(async (files) => {
+  const handleAddFiles = useCallback(async (files, options = {}) => {
+    const { duplicateNames = [], duplicateStrategy } = options
     setUploadModalOpen(false)
+    setDuplicateModal((m) => ({ ...m, open: false, files: null, duplicateNames: [] }))
     setLoading(true)
     setError(null)
     setActiveCategory(null)
     setActiveMonth(null)
+    setActiveFileYear(null)
 
-    const names = files.map(f => f.name)
-    const hasPdf = files.some(f => /\.pdf$/i.test(f.name))
+    let existingFileNames = active?.fileNames || []
+    let filesToProcess = files
+    let existing = active?.transactions || []
+    if (duplicateStrategy === 'deleteOld' && duplicateNames.length > 0) {
+      filesToProcess = files.filter((f) => !duplicateNames.includes(f.name))
+      existing = (active?.transactions || []).filter((t) => !duplicateNames.includes(t.source))
+      existingFileNames = (active?.fileNames || []).filter((n) => !duplicateNames.includes(n))
+    } else if (duplicateStrategy === 'overwrite' && duplicateNames.length > 0) {
+      existing = (active?.transactions || []).filter((t) => !duplicateNames.includes(t.source))
+    }
+
+    const names = filesToProcess.map((f) => f.name)
     const parseErrors = []
-    const existing = active?.transactions || []
     let idOffset = existing.length
     const newTxs = []
-
-    for (const file of files) {
+    const nextFileContents = { ...(active?.fileContents || {}) }
+    if (duplicateStrategy === 'deleteOld' && duplicateNames.length > 0) {
+      duplicateNames.forEach((n) => delete nextFileContents[n])
+    }
+    for (const file of filesToProcess) {
       setLoadingFile(file.name)
       try {
-        const isPdfFile = /\.pdf$/i.test(file.name)
-        let parsed = isPdfFile ? await parsePDF(file) : await parseCSV(file)
-        if (needsSignFlip(parsed)) parsed = parsed.map(t => ({ ...t, amount: -t.amount }))
+        const text = await file.text()
+        const parsed = await parseCSVFromString(text, file.name)
+        nextFileContents[file.name] = text
         parsed.forEach((t, i) => newTxs.push({ ...t, id: idOffset + i, source: file.name }))
         idOffset += parsed.length
       } catch (err) {
@@ -260,25 +373,109 @@ export default function App() {
       }
     }
 
+    let combined = existing.length || !newTxs.length ? [...existing, ...newTxs] : newTxs
+    if (newTxs.length > 0) {
+      const useAI = useAIAnalysis && openaiApiKey && openaiApiKey.trim()
+      if (useAI) {
+        try {
+          setLoadingFile('AI: Classifying deposits vs payments…')
+          const aiAdjusted = await classifyDepositsAndPayments(newTxs, openaiApiKey.trim(), (msg) => setLoadingFile(msg))
+          combined = existing.length ? [...existing, ...aiAdjusted] : aiAdjusted
+        } catch (err) {
+          setError((e) => (e ? e + '\n' : '') + `AI analysis failed: ${err.message}`)
+        }
+      } else if (newTxs.length && needsSignFlip(newTxs) && !newTxs.some(t => (t.institution || '').toLowerCase() === 'chase')) {
+        // Chase CSVs already have correct signs from the parser; don't flip
+        const flipped = newTxs.map(t => ({ ...t, amount: -t.amount }))
+        combined = existing.length ? [...existing, ...flipped] : flipped
+      }
+    }
+
+    let base
+    if (combined.length > 0) {
+      const useAI = useAIAnalysis && openaiApiKey && openaiApiKey.trim()
+      if (useAI) {
+        try {
+          setLoadingFile('AI: Categorizing transactions…')
+          base = await categorizeTransactionsWithAI(combined, allCategories, openaiApiKey.trim(), (msg) => setLoadingFile(msg))
+        } catch (err) {
+          setError((e) => (e ? e + '\n' : '') + `AI categorization failed: ${err.message}`)
+          base = categorizeAll(combined)
+        }
+      } else {
+        base = categorizeAll(combined)
+      }
+    } else {
+      base = []
+    }
+
     setLoadingFile('')
     if (parseErrors.length) setError(parseErrors.join('\n'))
-
-    const allTxs = existing.length || !newTxs.length ? [...existing, ...newTxs] : newTxs
-    const base = categorizeAll(allTxs)
-    const allNames = [...(active?.fileNames || []), ...names]
+    const allNames = [...existingFileNames, ...names.filter((n) => !existingFileNames.includes(n))]
 
     setProfiles(prev => prev.map(p => {
       if (p.id !== activeId) return p
       const withRules = base ? applyUserRules(base, p.rules || []) : null
+      const nextFolders =
+        duplicateStrategy === 'deleteOld' && duplicateNames.length > 0
+          ? Object.fromEntries(Object.entries(p.fileFolders || {}).filter(([k]) => !duplicateNames.includes(k)))
+          : p.fileFolders
       return {
         ...p,
         transactions: withRules && withRules.length ? withRules : null,
         fileNames: allNames,
-        isPdf: (p.isPdf || hasPdf),
+        fileContents: nextFileContents,
+        fileFolders: nextFolders,
       }
     }))
 
+    if (useAIAnalysis && openaiApiKey?.trim() && newTxs.length > 0) {
+      setAiProcessedMsg('Processed with AI: deposits, payments & categories')
+      setTimeout(() => setAiProcessedMsg(null), 5000)
+    }
     setLoading(false)
+  }, [activeId, active, useAIAnalysis, openaiApiKey, allCategories])
+
+  const handleRereadFiles = useCallback(async () => {
+    const names = active?.fileNames || []
+    const contents = active?.fileContents || {}
+    const hasStored = names.some((n) => contents[n])
+    if (!hasStored || !names.length) return
+    setLoading(true)
+    setLoadingFile('Re-reading CSV files…')
+    setError(null)
+    try {
+      const existing = active?.transactions || []
+      const reParsed = []
+      for (const name of names) {
+        if (contents[name]) {
+          setLoadingFile(`Re-reading ${name}…`)
+          const txs = await parseCSVFromString(contents[name], name)
+          txs.forEach((t, i) => reParsed.push({ ...t, id: reParsed.length + i, source: name }))
+        } else {
+          existing.filter((t) => t.source === name).forEach((t, i) => reParsed.push({ ...t, id: reParsed.length + i }))
+        }
+      }
+      let combined = reParsed.map((t, i) => ({ ...t, id: i }))
+      const isChase = combined.some((t) => (t.institution || '').toLowerCase() === 'chase')
+      if (combined.length && needsSignFlip(combined) && !isChase) {
+        combined = combined.map((t) => ({ ...t, amount: -t.amount }))
+      }
+      const base = combined.length ? categorizeAll(combined) : []
+      const withRules = base.length ? applyUserRules(base, active?.rules || []) : []
+      setProfiles((prev) =>
+        prev.map((p) =>
+          p.id !== activeId
+            ? p
+            : { ...p, transactions: withRules.length ? withRules : null }
+        )
+      )
+    } catch (err) {
+      setError(err?.message || 'Re-read failed')
+    } finally {
+      setLoadingFile('')
+      setLoading(false)
+    }
   }, [activeId, active])
 
   const handleRulesChange = useCallback((nextRules) => {
@@ -356,23 +553,24 @@ export default function App() {
     ))
   }, [activeId])
 
-  const handleSubcategoryChange = useCallback((id, sub) => {
-    setProfiles(prev => prev.map(p =>
-      p.id === activeId
-        ? { ...p, transactions: p.transactions?.map(t => t.id === id ? { ...t, subcategory: sub } : t) }
-        : p
-    ))
+  const handleDeleteTransaction = useCallback((id) => {
+    setProfiles(prev => prev.map(p => {
+      if (p.id !== activeId || !p.transactions) return p
+      const next = p.transactions.filter((t) => t.id !== id).map((t, i) => ({ ...t, id: i }))
+      return { ...p, transactions: next.length ? next : null }
+    }))
   }, [activeId])
 
   const handleReset = () => {
     setProfiles(prev => prev.map(p => p.id === activeId
-      ? { ...p, transactions: null, fileNames: [], isPdf: false, fileFolders: {}, folders: [] }
+      ? { ...p, transactions: null, fileNames: [], fileContents: {}, fileFolders: {}, folders: [] }
       : p
     ))
     setError(null)
     setActiveCategory(null)
     setActiveYear(null)
     setActiveMonth(null)
+    setActiveFileYear(null)
   }
 
   const handleRemoveFile = useCallback((fileName) => {
@@ -382,13 +580,13 @@ export default function App() {
         .filter(t => t.source !== fileName)
         .map((t, i) => ({ ...t, id: i }))
       const nextNames = (p.fileNames || []).filter(n => n !== fileName)
-      const nextIsPdf = nextNames.some(n => /\.pdf$/i.test(n))
       const { [fileName]: _removed, ...restFolders } = p.fileFolders || {}
+      const { [fileName]: _removedContent, ...restContents } = p.fileContents || {}
       return {
         ...p,
         transactions: nextTxs.length ? nextTxs : null,
         fileNames: nextNames,
-        isPdf: nextIsPdf,
+        fileContents: restContents,
         fileFolders: restFolders,
       }
     }))
@@ -457,6 +655,48 @@ export default function App() {
     }))
   }, [activeId])
 
+  // ── AI Re-analyze ────────────────────────────────────────────────────────────
+
+  const handleReanalyzeWithAI = useCallback(async () => {
+    const existingTxs = active?.transactions
+    if (!existingTxs?.length || !openaiApiKey?.trim()) return
+
+    setLoading(true)
+    setError(null)
+    try {
+      setLoadingFile('AI: Classifying deposits vs payments…')
+      let analyzed = await classifyDepositsAndPayments(
+        existingTxs,
+        openaiApiKey.trim(),
+        (msg) => setLoadingFile(msg),
+      )
+
+      setLoadingFile('AI: Categorizing transactions…')
+      analyzed = await categorizeTransactionsWithAI(
+        analyzed,
+        allCategories,
+        openaiApiKey.trim(),
+        (msg) => setLoadingFile(msg),
+      )
+
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (p.id !== activeId) return p
+          const withRules = applyUserRules(analyzed, p.rules || [])
+          return { ...p, transactions: withRules }
+        }),
+      )
+
+      setAiProcessedMsg('Re-analyzed with AI: deposits, payments & categories')
+      setTimeout(() => setAiProcessedMsg(null), 5000)
+    } catch (err) {
+      setError(`AI re-analysis failed: ${err.message}`)
+    }
+
+    setLoadingFile('')
+    setLoading(false)
+  }, [activeId, active, openaiApiKey, allCategories])
+
   const handleRenameFolder = useCallback((oldName, newNameRaw) => {
     const clean = (newNameRaw || '').trim()
     if (!clean || clean === oldName) return
@@ -490,19 +730,20 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-8 px-4" style={{ background: 'var(--bg-page)' }}>
         <div className="relative">
-          <div className="w-16 h-16 border-[3px] border-indigo-500/20 rounded-full" />
-          <div className="absolute inset-0 w-16 h-16 border-[3px] border-t-indigo-500 rounded-full animate-spin" />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: 'var(--accent-light)', boxShadow: 'var(--shadow-md)' }}>
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+          </div>
         </div>
-        <div className="text-center">
-          <p className="text-white font-semibold text-lg">Parsing transactions…</p>
+        <div className="text-center max-w-sm">
+          <p className="font-bold text-xl tracking-tight" style={{ color: 'var(--text-primary)' }}>Parsing transactions…</p>
           {loadingFile ? (
-            <p className="text-slate-500 text-sm mt-1 max-w-xs truncate">
-              Processing <span className="text-slate-400">{loadingFile}</span>
+            <p className="text-sm mt-2 max-w-xs mx-auto truncate" style={{ color: 'var(--text-muted)' }}>
+              Processing <span style={{ color: 'var(--text-secondary)' }}>{loadingFile}</span>
             </p>
           ) : (
-            <p className="text-slate-500 text-sm mt-1">Categorizing automatically…</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Categorizing automatically…</p>
           )}
         </div>
       </div>
@@ -512,35 +753,98 @@ export default function App() {
   // ── Upload screen ───────────────────────────────────────────────────────────
 
   if (!transactions) {
-    return (
-      <div>
-        <header
-          className="fixed top-0 left-0 right-0 z-20 px-6 py-3 flex items-center justify-between"
-          style={{
-            background: 'rgba(8,9,18,0.7)',
-            backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Sparkles className="w-3.5 h-3.5 text-white" />
+    if (view === 'settings') {
+      return (
+        <div className="min-h-screen" style={{ background: 'var(--bg-page)' }}>
+          <header
+            className="sticky top-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between border-b"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)' }}>
+                <Sparkles className="w-4 h-4" strokeWidth={2.5} />
+              </div>
+              <span className="font-display font-semibold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>FinLens</span>
             </div>
-            <span className="text-sm font-bold text-white tracking-tight">FinLens</span>
-          </div>
-          <ProfileBar
-            profiles={profiles}
-            activeProfileId={activeId}
-            onSwitch={handleSwitchProfile}
-            onCreate={handleCreateProfile}
-            onDelete={handleDeleteProfile}
+          </header>
+          <SettingsPage
+            openaiApiKey={openaiApiKey}
+            onApiKeyChange={setOpenaiApiKey}
+            useAIAnalysis={useAIAnalysis}
+            onUseAIAnalysisChange={setUseAIAnalysis}
+            hasTransactions={!!(active?.transactions?.length)}
+            onReanalyze={handleReanalyzeWithAI}
+            onBack={() => setView('dashboard')}
+            excludedCategories={excludedCategories}
+            onExcludedCategoriesChange={handleExcludedCategoriesChange}
+            categoriesForExcludedUI={categoriesForExcludedUI}
           />
+        </div>
+      )
+    }
+    return (
+      <div style={{ background: 'var(--bg-page)', minHeight: '100vh' }}>
+        <header
+          className="fixed top-0 left-0 right-0 z-20 px-4 sm:px-6 py-3 flex items-center justify-between border-b"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)' }}>
+              <Sparkles className="w-4 h-4" strokeWidth={2.5} />
+            </div>
+            <span className="font-display font-semibold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>FinLens</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <ProfileBar
+              profiles={profiles}
+              activeProfileId={activeId}
+              onSwitch={handleSwitchProfile}
+              onCreate={handleCreateProfile}
+              onDelete={handleDeleteProfile}
+            />
+            <button
+              type="button"
+              onClick={() => setView('settings')}
+              className="text-sm font-medium transition-colors hover:opacity-80 px-3 py-2 rounded-xl hover:bg-[var(--border-subtle)]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Settings
+            </button>
+          </div>
         </header>
 
         <UploadZone onFileSelected={handleFiles} loading={false} hideBrand />
 
+        <div className="max-w-md mx-auto mt-8 px-4">
+          <div className="p-5 rounded-2xl border bg-[var(--bg-card)] shadow-finlens" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-light)' }}>
+                <Sparkles className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+              </div>
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>AI: Deposit vs payment</span>
+            </div>
+            <label className="flex items-center gap-3 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useAIAnalysis}
+                onChange={(e) => setUseAIAnalysis(e.target.checked)}
+                className="rounded-xl border-slate-300 bg-white text-[var(--accent)] focus:ring-[var(--accent)] w-4 h-4"
+              />
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Use AI to classify deposits vs payments</span>
+            </label>
+            <input
+              type="password"
+              value={openaiApiKey}
+              onChange={(e) => setOpenaiApiKey(e.target.value)}
+              placeholder="OpenAI or Claude API key (optional)"
+              className="input-base"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+
         {error && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-4 text-sm max-w-lg text-center animate-fade-up whitespace-pre-line">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--danger-light)] border border-red-200 text-[var(--danger)] rounded-xl px-5 py-4 text-sm max-w-lg text-center animate-fade-up whitespace-pre-line shadow-finlens-lg font-medium">
             {error}
           </div>
         )}
@@ -550,107 +854,125 @@ export default function App() {
 
   // ── Dashboard ───────────────────────────────────────────────────────────────
 
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Transactions', icon: List },
+    ...(fileNames.length > 0 ? [{ id: 'files', label: 'Files', icon: FolderOpen }] : []),
+    { id: 'rules', label: 'Rules', icon: Sliders },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ]
+
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-0 left-[30%] w-[600px] h-[300px] bg-indigo-600/10 blur-[120px] rounded-full" />
-      </div>
-
-      <header
-        className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
-        style={{
-          background: 'rgba(8,9,18,0.85)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-white text-base tracking-tight">FinLens</span>
-          {fileNames.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setView(view === 'files' ? 'dashboard' : 'files')}
-              className="flex items-center gap-1.5 ml-2 pl-3 border-l border-white/10 text-left rounded-lg px-2 py-1 -m-1 hover:bg-white/5 transition-colors"
-              title="View uploaded files"
-            >
-              <FileText className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-              <span className="text-xs text-slate-400">
-                {view === 'files' ? 'Dashboard' : `${fileNames.length} file${fileNames.length !== 1 ? 's' : ''}`}
-              </span>
-              {view !== 'files' && (
-                <span className="text-xs text-slate-600">· {transactions.length} tx</span>
-              )}
-            </button>
-          )}
+    <div className="min-h-screen flex" style={{ background: 'var(--bg-page)' }}>
+      {aiProcessedMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 bg-[var(--success-light)] border border-[var(--success)] text-[var(--success)] rounded-xl px-5 py-3 text-sm font-semibold shadow-lg animate-fade-up">
+          <Sparkles className="w-4 h-4" />
+          {aiProcessedMsg}
         </div>
+      )}
 
-        <div className="flex items-center gap-2">
+      {/* Sidebar overlay (mobile) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed top-0 left-0 z-50 h-full w-[var(--sidebar-width)] flex flex-col
+          bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)]
+          transform transition-transform duration-300 ease-out
+          md:translate-x-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="flex items-center justify-between p-5 border-b border-[var(--sidebar-border)]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--sidebar-accent)', color: '#fff', boxShadow: '0 4px 14px rgba(129, 140, 248, 0.4)' }}>
+              <Sparkles className="w-5 h-5" strokeWidth={2.5} />
+            </div>
+            <span className="font-display font-bold text-lg tracking-tight text-white">FinLens</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-2 rounded-xl text-[var(--sidebar-text)] hover:bg-[var(--sidebar-bg-hover)] hover:text-white transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5" aria-label="Main">
+          {navItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => { setView(id); setSidebarOpen(false) }}
+              className={`sidebar-nav-item w-full justify-start ${view === id ? 'sidebar-nav-item-active' : ''}`}
+            >
+              <Icon className="w-5 h-5 shrink-0" />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-3 border-t border-[var(--sidebar-border)]">
           <ProfileBar
             profiles={profiles}
             activeProfileId={activeId}
             onSwitch={handleSwitchProfile}
             onCreate={handleCreateProfile}
             onDelete={handleDeleteProfile}
+            variant="sidebar"
           />
-          <div className="flex items-center gap-1 mr-1">
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 md:ml-[var(--sidebar-width)]">
+        <header
+          className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 sm:px-6 h-16 border-b"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+        >
+          <div className="flex items-center gap-4 min-w-0">
             <button
               type="button"
-              onClick={() => setView('dashboard')}
-              className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200"
-              style={
-                view === 'dashboard'
-                  ? { background: 'rgba(255,255,255,0.16)', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.35)' }
-                  : { background: 'rgba(15,23,42,0.8)', color: '#9ca3af', border: '1px solid rgba(148,163,184,0.45)' }
-              }
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 rounded-xl transition-colors hover:bg-[var(--border-subtle)]"
+              style={{ color: 'var(--text-muted)' }}
+              aria-label="Open menu"
             >
-              Dashboard
+              <Menu className="w-6 h-6" />
             </button>
+            <span className="font-display font-semibold text-lg truncate" style={{ color: 'var(--text-primary)' }}>
+              {view === 'dashboard' ? 'Where your money goes' : navItems.find((n) => n.id === view)?.label || view}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <ProfileBar
+              profiles={profiles}
+              activeProfileId={activeId}
+              onSwitch={handleSwitchProfile}
+              onCreate={handleCreateProfile}
+              onDelete={handleDeleteProfile}
+            />
             <button
-              type="button"
-              onClick={() => setView('transactions')}
-              className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200 hover:bg-white/10"
-              style={
-                view === 'transactions'
-                  ? { background: 'rgba(129,140,248,0.22)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.7)' }
-                  : { background: 'rgba(15,23,42,0.8)', color: '#94a3b8', border: '1px solid rgba(148,163,184,0.4)' }
-              }
+              onClick={() => setUploadModalOpen(true)}
+              className="btn-primary flex items-center gap-2"
             >
-              Transactions
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('rules')}
-              className="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200 hover:bg-white/10"
-              style={
-                view === 'rules'
-                  ? { background: 'rgba(129,140,248,0.22)', color: '#e0e7ff', border: '1px solid rgba(129,140,248,0.7)' }
-                  : { background: 'rgba(15,23,42,0.8)', color: '#e5e7eb', border: '1px solid rgba(148,163,184,0.4)' }
-              }
-            >
-              Rules
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Upload</span>
             </button>
           </div>
-          <button
-            onClick={() => setUploadModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 hover:bg-white/10"
-            style={{ background: 'rgba(255,255,255,0.06)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <Upload className="w-3.5 h-3.5" />
-            New Upload
-          </button>
-        </div>
-      </header>
+        </header>
 
-      {/* Year filter bar at top when viewing dashboard or transactions */}
-      {transactions?.length > 0 && getUniqueYears(transactions).length > 1 && (view === 'dashboard' || view === 'transactions') && (
-        <div
-          className="sticky top-[57px] z-10 border-b border-white/5 px-4 sm:px-6 py-3 flex items-center justify-center sm:justify-start"
-          style={{ background: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(12px)' }}
-        >
-          <div className="max-w-7xl w-full">
+      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
+        {/* Year filter: inside content when multiple years and on Dashboard or Transactions */}
+        {transactions?.length > 0 && getUniqueYears(transactions).length > 1 && (view === 'dashboard' || view === 'transactions') && (
+          <div className="mb-6">
             <YearFilter
               transactions={transactions}
               activeYear={activeYear}
@@ -658,26 +980,29 @@ export default function App() {
               compact
             />
           </div>
-        </div>
-      )}
+        )}
 
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {view === 'files' ? (
           <FilesPage
             fileNames={fileNames}
+            fileContents={active?.fileContents || {}}
             transactions={transactions}
             fileFolders={fileFolders}
             folders={folders}
+            selectedFileYear={activeFileYear}
+            onFileYearChange={setActiveFileYear}
             onFolderChange={handleFileFolderChange}
             onCreateFolder={handleCreateFolder}
             onDeleteFolder={handleDeleteFolder}
             onRenameFolder={handleRenameFolder}
             onRemoveFile={handleRemoveFile}
+            onRereadFiles={handleRereadFiles}
+            rereadLoading={loading}
             onBack={() => setView('dashboard')}
           />
         ) : view === 'transactions' ? (
           <TransactionsPage
-            transactions={filteredForTransactions || []}
+            transactions={expenseOnlyForTransactions}
             months={monthsForFilter}
             activeMonth={activeMonth}
             activeCategory={activeCategory}
@@ -685,7 +1010,7 @@ export default function App() {
             onCategoryFilterChange={setActiveCategory}
             onAddCategory={handleAddCategory}
             onTransactionCategoryChange={handleCategoryChange}
-            onSubcategoryChange={handleSubcategoryChange}
+            onDeleteTransaction={handleDeleteTransaction}
             allCategories={allCategories}
             customCategories={customCategories}
             onAddRuleFromTransaction={handleAddRuleFromTransaction}
@@ -698,30 +1023,53 @@ export default function App() {
             onChange={handleRulesChange}
             onBack={() => setView('dashboard')}
           />
+        ) : view === 'settings' ? (
+          <SettingsPage
+            openaiApiKey={openaiApiKey}
+            onApiKeyChange={setOpenaiApiKey}
+            useAIAnalysis={useAIAnalysis}
+            onUseAIAnalysisChange={setUseAIAnalysis}
+            hasTransactions={!!(active?.transactions?.length)}
+            onReanalyze={handleReanalyzeWithAI}
+            onBack={() => setView('dashboard')}
+            excludedCategories={excludedCategories}
+            onExcludedCategoriesChange={handleExcludedCategoriesChange}
+            categoriesForExcludedUI={categoriesForExcludedUI}
+          />
         ) : (
         <>
-        {isPdf && (
-          <div
-            className="flex items-start gap-3 rounded-xl px-4 py-3 mb-6 text-sm animate-fade-up"
-            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
-          >
-            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
-            <p className="text-amber-200/70">
-              <span className="font-semibold text-amber-300">PDF mode</span> — transaction amounts are extracted using layout heuristics and may occasionally be inaccurate.
-              Click any category badge to correct categories. For best accuracy, use a CSV export from your bank.
-            </p>
-          </div>
-        )}
+        <div className="mb-10 animate-fade-up">
+          <h1 className="section-title">Where your money goes</h1>
+          <p className="section-desc">
+            {activeYear != null ? activeYear : 'All years'} · every expense broken down by category
+          </p>
+        </div>
+        <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
 
-        <SummaryCards transactions={filteredByYear} />
-        <SpendingChart transactions={filteredByYear} />
+        {/* Two-column: Spending Overview + Recent Activity (same height) */}
+        <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-[420px] gap-4 mb-6">
+          <div className="md:col-span-3 md:h-full min-h-0 flex flex-col">
+            <SpendingChart transactions={filteredByYear} activeYear={activeYear} />
+          </div>
+          <div className="md:col-span-2 md:h-full min-h-0 flex flex-col">
+            <RecentActivity
+              transactions={filteredByYear}
+              excludedCategories={excludedCategories}
+              onViewAll={() => setView('transactions')}
+            />
+          </div>
+        </div>
+
+        <MonthlyOverview transactions={filteredByYear} selectedYear={activeYear} excludedCategories={excludedCategories} />
+
         <SpendingBreakdownSection
           transactions={filteredByYear}
           selectedYear={activeYear}
           customCategories={customCategories}
+          excludedCategories={excludedCategories}
         />
-        <p className="text-center text-xs text-slate-700 mt-8">
-          FinLens · All data processed locally · Nothing sent to any server
+        <p className="text-center text-sm mt-14 mb-8 font-medium" style={{ color: 'var(--text-muted)' }}>
+          Data stays on your device
         </p>
         </>
         )}
@@ -735,39 +1083,102 @@ export default function App() {
             onClick={() => setUploadModalOpen(false)}
             aria-hidden
           />
-          <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md rounded-2xl p-6 shadow-2xl"
-            style={{
-              background: 'rgba(15,23,42,0.98)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md rounded-2xl p-6 shadow-finlens-lg border bg-[var(--bg-card)] animate-scale-in" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Add more files</h3>
+              <h3 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Add more files</h3>
               <button
                 type="button"
                 onClick={() => setUploadModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--border-subtle)]"
+                style={{ color: 'var(--text-muted)' }}
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               New transactions will be added to the current profile. CSV and PDF supported.
             </p>
+
             <UploadZone
               compact
-              onFileSelected={handleAddFiles}
+              onFileSelected={(files) => {
+                const names = files.map((f) => f.name)
+                const dups = names.filter((n) => (fileNames || []).includes(n))
+                if (dups.length > 0) {
+                  setDuplicateModal({ open: true, files, duplicateNames: dups })
+                } else {
+                  handleAddFiles(files)
+                }
+              }}
               loading={false}
             />
-            <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
+            <div className="mt-5 pt-4 border-t flex justify-between items-center" style={{ borderColor: 'var(--border-subtle)' }}>
               <button
                 type="button"
                 onClick={() => { handleReset(); setUploadModalOpen(false) }}
-                className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+                className="text-sm font-medium transition-colors hover:text-[var(--danger)]"
+                style={{ color: 'var(--text-muted)' }}
               >
                 Replace all & start over
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Duplicate files: overwrite or delete old */}
+      {duplicateModal.open && duplicateModal.files && duplicateModal.duplicateNames?.length > 0 && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+            onClick={() => setDuplicateModal((m) => ({ ...m, open: false, files: null, duplicateNames: [] }))}
+            aria-hidden
+          />
+          <div
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md rounded-2xl p-6 shadow-finlens-lg border bg-[var(--bg-card)] animate-scale-in"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <h3 className="text-xl font-bold tracking-tight mb-2" style={{ color: 'var(--text-primary)' }}>Files already exist</h3>
+            <p className="text-sm mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              These files are already in this profile: <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{duplicateModal.duplicateNames.join(', ')}</span>
+            </p>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+              Overwrite replaces their transactions with the new upload. Delete old removes the existing files and does not add the new upload for these names.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleAddFiles(duplicateModal.files, {
+                    duplicateNames: duplicateModal.duplicateNames,
+                    duplicateStrategy: 'overwrite',
+                  })
+                }}
+                className="btn-primary px-4 py-2"
+              >
+                Overwrite
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleAddFiles(duplicateModal.files, {
+                    duplicateNames: duplicateModal.duplicateNames,
+                    duplicateStrategy: 'deleteOld',
+                  })
+                }}
+                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90"
+                style={{ background: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              >
+                Delete old
+              </button>
+              <button
+                type="button"
+                onClick={() => setDuplicateModal((m) => ({ ...m, open: false, files: null, duplicateNames: [] }))}
+                className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--border-subtle)]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Cancel
               </button>
             </div>
           </div>
@@ -783,30 +1194,28 @@ export default function App() {
             aria-hidden
           />
           <div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md rounded-2xl p-6 shadow-2xl"
-            style={{
-              background: 'rgba(15,23,42,0.98)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-full max-w-md rounded-2xl p-6 shadow-finlens-lg border bg-[var(--bg-card)] animate-scale-in"
+            style={{ borderColor: 'var(--border)' }}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Create rule from transaction</h3>
+              <h3 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Create rule from transaction</h3>
               <button
                 type="button"
                 onClick={handleCancelRuleModal}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--border-subtle)]"
+                style={{ color: 'var(--text-muted)' }}
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               This rule will look for the text below in the description and automatically set the
               category when it matches.
             </p>
-            <div className="space-y-3 mb-5">
+            <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
+                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                   Description contains
                 </label>
                 <input
@@ -815,12 +1224,12 @@ export default function App() {
                   onChange={(e) =>
                     setRuleModalDraft((prev) => ({ ...(prev || {}), text: e.target.value }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="input-base"
                   placeholder="e.g. Uber, Netflix, Payroll"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
+                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                   Set category to
                 </label>
                 <select
@@ -828,7 +1237,8 @@ export default function App() {
                   onChange={(e) =>
                     setRuleModalDraft((prev) => ({ ...(prev || {}), category: e.target.value }))
                   }
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-white/10 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="input-base"
+                  style={{ cursor: 'pointer' }}
                 >
                   {allCategories.map((cat) => (
                     <option key={cat} value={cat}>
@@ -838,18 +1248,19 @@ export default function App() {
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={handleCancelRuleModal}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
+                className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--border-subtle)]"
+                style={{ color: 'var(--text-muted)' }}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmRuleFromModal}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-400 transition-colors"
+                className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold"
               >
                 Save rule
               </button>
@@ -857,6 +1268,7 @@ export default function App() {
           </div>
         </>
       )}
+      </div>
     </div>
   )
 }

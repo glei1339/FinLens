@@ -14,7 +14,7 @@ export default function TransactionsPage({
   onCategoryFilterChange,
   onAddCategory,
   onTransactionCategoryChange,
-  onSubcategoryChange,
+  onDeleteTransaction,
   allCategories,
   customCategories,
   onAddRuleFromTransaction,
@@ -24,32 +24,35 @@ export default function TransactionsPage({
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors"
+        className="flex items-center gap-2 text-sm font-semibold mb-6 transition-colors rounded-xl px-3 py-2 -ml-2 hover:bg-[var(--border-subtle)]"
+        style={{ color: 'var(--text-muted)' }}
       >
         <ArrowLeft className="w-4 h-4" />
         Back to dashboard
       </button>
 
-      <div className="flex items-center gap-2 mb-2">
-        <ListFilter className="w-5 h-5 text-indigo-400" />
-        <h1 className="text-2xl font-bold text-white">Filter & categorize</h1>
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-light)' }}>
+            <ListFilter className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+          </span>
+          <h1 className="section-title">All expenses</h1>
+        </div>
+        <p className="section-desc">
+          Every dollar, categorized. Filter by year, month, and category. Edit categories in the table.
+        </p>
       </div>
-      <p className="text-slate-500 text-sm mb-6">
-        Filter by year at the top, then by month and category here. Edit categories and subcategories in the table.
-      </p>
 
       {months?.length > 0 && (
-        <div
-          className="rounded-2xl p-4 mb-4"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
-        >
+        <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-300">Filter by month</h2>
+            <h2 className="card-title">Month</h2>
             {activeMonth != null && (
               <button
                 type="button"
                 onClick={() => onMonthChange(null)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-xs font-medium transition-colors hover:opacity-80"
+                style={{ color: 'var(--accent)' }}
               >
                 All months
               </button>
@@ -64,11 +67,10 @@ export default function TransactionsPage({
                   key={m}
                   type="button"
                   onClick={() => onMonthChange(isActive ? null : m)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border ${
-                    isActive
-                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/60'
-                      : 'bg-white/5 text-slate-400 border-white/8 hover:border-white/20 hover:text-slate-200'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+                    isActive ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
                   }`}
+                  style={isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
                 >
                   {label}
                 </button>
@@ -88,7 +90,7 @@ export default function TransactionsPage({
       <TransactionTable
         transactions={transactions}
         onCategoryChange={onTransactionCategoryChange}
-        onSubcategoryChange={onSubcategoryChange}
+        onDeleteTransaction={onDeleteTransaction}
         activeCategory={activeCategory}
         categories={allCategories}
         customCategories={customCategories}
