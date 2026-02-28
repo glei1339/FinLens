@@ -57,47 +57,29 @@ export default function SummaryCards({ transactions, excludedCategories }) {
 
   return (
     <div className="mb-10 animate-fade-up">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
-          <p className="stat-label flex items-center gap-2 mb-2">
-            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--danger-light)' }}>
-              <DollarSign className="w-4 h-4" style={{ color: 'var(--danger)' }} />
-            </span>
-            Total spent
-          </p>
-          <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--danger)' }}>{fmtCompact(totalSpent)}</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Based on selected year above</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card stat-card-danger p-6 transition-all duration-200">
+          <p className="stat-label mb-3">Total spent</p>
+          <p className="stat-value text-3xl sm:text-4xl mb-1" style={{ color: 'var(--danger)' }}>{fmtCompact(totalSpent)}</p>
+          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Based on selected period</p>
         </div>
 
-        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
-          <p className="stat-label flex items-center gap-2 mb-2">
-            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-light)' }}>
-              <Calendar className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-            </span>
-            Avg per month
-          </p>
-          <p className="stat-value text-2xl sm:text-3xl" style={{ color: 'var(--accent)' }}>{fmtCompact(avgPerMonth)}</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Across {monthCount} month{monthCount !== 1 ? 's' : ''} with spending</p>
+        <div className="card stat-card-accent p-6 transition-all duration-200">
+          <p className="stat-label mb-3">Avg / month</p>
+          <p className="stat-value text-3xl sm:text-4xl mb-1" style={{ color: 'var(--accent)' }}>{fmtCompact(avgPerMonth)}</p>
+          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>{monthCount} month{monthCount !== 1 ? 's' : ''} with data</p>
         </div>
 
-        <div className="card p-6 transition-all duration-200 hover:shadow-finlens">
-          <p className="stat-label flex items-center gap-2 mb-2">
-            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--border-subtle)' }}>
-              <Receipt className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            </span>
-            Expenses
-          </p>
-          <p className="stat-value">{count.toLocaleString()}</p>
-          <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-            {uncategorized > 0 ? `${uncategorized} uncategorized` : 'All categorized'}
-          </p>
-          <div className="mt-4 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border-subtle)' }}>
+        <div className="card stat-card-success p-6 transition-all duration-200">
+          <p className="stat-label mb-3">Transactions</p>
+          <p className="stat-value text-3xl sm:text-4xl mb-1">{count.toLocaleString()}</p>
+          <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--progress-track)' }}>
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${categorizedPct}%`, background: 'var(--accent)' }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${categorizedPct}%`, background: 'var(--success)' }}
             />
           </div>
-          <p className="text-xs font-medium mt-2" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
             {categorizedPct}% categorized
           </p>
         </div>

@@ -68,9 +68,9 @@ export default function TransactionsPage({
                   type="button"
                   onClick={() => onMonthChange(isActive ? null : m)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                    isActive ? 'text-white border-transparent' : 'border-slate-200 hover:bg-slate-50'
+                    isActive ? 'text-white border-transparent' : 'hover:bg-[var(--bg-elevated)]'
                   }`}
-                  style={isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)' }}
+                  style={isActive ? { background: 'var(--accent)' } : { color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
                 >
                   {label}
                 </button>

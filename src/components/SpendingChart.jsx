@@ -89,10 +89,10 @@ const CustomBarTooltip = ({ active, payload, label }) => {
 function PieCenterLabel({ cx, cy, total }) {
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-      <tspan x={cx} y={cy - 8} fontSize="11" fill="#94a3b8" fontWeight="500" letterSpacing="0.08em">
+      <tspan x={cx} y={cy - 8} fontSize="11" fill="#64748b" fontWeight="600" letterSpacing="0.08em">
         TOTAL
       </tspan>
-      <tspan x={cx} y={cy + 12} fontSize="16" fill="#0f172a" fontWeight="700">
+      <tspan x={cx} y={cy + 12} fontSize="16" fill="#f1f5f9" fontWeight="700">
         {fmt(total)}
       </tspan>
     </text>
@@ -162,20 +162,20 @@ export default function SpendingChart({ transactions, activeYear }) {
                 <AreaChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity="0.04" />
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 12, fill: '#475569' }}
+                    tick={{ fontSize: 12, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                   />
                   <YAxis
                     tickFormatter={(v) => v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`}
-                    tick={{ fontSize: 12, fill: '#475569' }}
+                    tick={{ fontSize: 12, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
                     width={48}
@@ -260,7 +260,7 @@ export default function SpendingChart({ transactions, activeYear }) {
                       <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
                       <span className="text-sm font-mono ml-2" style={{ color: 'var(--text-secondary)' }}>{pct}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--progress-track)' }}>
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${pct}%`, background: color }}
@@ -280,10 +280,10 @@ export default function SpendingChart({ transactions, activeYear }) {
         <div className="flex-1 min-h-0 flex items-start">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={top} margin={{ top: 4, right: 8, left: 0, bottom: 64 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fontSize: 12, fill: '#475569' }}
+              tick={{ fontSize: 12, fill: '#64748b' }}
               angle={-38}
               textAnchor="end"
               interval={0}
@@ -292,11 +292,11 @@ export default function SpendingChart({ transactions, activeYear }) {
             />
             <YAxis
               tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
-              tick={{ fontSize: 12, fill: '#475569' }}
+              tick={{ fontSize: 12, fill: '#64748b' }}
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(99,102,241,0.08)' }} />
+            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.08)' }} />
             <Bar dataKey="value" radius={[6, 6, 0, 0]}>
               {top.map((entry) => (
                 <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || '#9ca3af'} />

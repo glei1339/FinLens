@@ -259,7 +259,7 @@ export default function SpendingBreakdownPage({
         {/* Spending by category */}
         <div
           className="rounded-2xl overflow-hidden mb-8"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
         >
           <div className="px-5 py-4 border-b border-white/10">
             <h2 className="font-semibold text-white">{selectedYear != null ? 'Total YTD' : 'Spending by category'}</h2>
@@ -314,7 +314,7 @@ export default function SpendingBreakdownPage({
         {selectedYear != null && monthlySpending.length > 0 && (
           <div
             className="rounded-2xl overflow-hidden mb-8"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
           >
             <div className="px-5 py-4 border-b border-white/10">
               <h2 className="font-semibold text-white">Spending by month</h2>
@@ -356,7 +356,7 @@ export default function SpendingBreakdownPage({
         {income.length > 0 && (
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
           >
             <div className="px-5 py-4 border-b border-white/10">
               <h2 className="font-semibold text-white">Income</h2>

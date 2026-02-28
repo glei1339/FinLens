@@ -47,7 +47,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-100">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
             {loading ? (
               <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
             ) : (
@@ -79,7 +79,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
         {/* Logo */}
         {!hideBrand && (
           <div className="animate-fade-up flex items-center gap-2.5 mb-10 sm:mb-12">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 20px rgba(99, 102, 241, 0.4)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.4)' }}>
               <Sparkles className="w-4 h-4" strokeWidth={2.5} />
             </div>
             <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>FinLens</span>
@@ -107,13 +107,13 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           className={`relative rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 min-h-[220px] sm:min-h-[260px]
               ${dragging ? 'border-2 border-dashed' : 'bg-[var(--bg-card)] border-2 border-dashed hover:bg-[var(--border-subtle)]/50'}
               ${loading ? 'opacity-80 pointer-events-none' : ''}`}
-            style={dragging ? { borderColor: 'var(--accent)', background: 'var(--accent-light)', boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.12)' } : { borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+            style={dragging ? { borderColor: 'var(--accent)', background: 'var(--accent-light)', boxShadow: '0 0 0 4px rgba(59, 130, 246, 0.12)' } : { borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
             onClick={() => inputRef.current?.click()}
             onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
           >
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${dragging ? 'bg-white shadow-sm scale-110' : 'bg-slate-100'}`} style={dragging ? { color: 'var(--accent)' } : {}}>
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 ${dragging ? 'scale-110' : ''}`} style={{ background: dragging ? 'var(--bg-card)' : 'var(--bg-elevated)', boxShadow: dragging ? 'var(--shadow-md)' : 'none' }}>
               {loading ? (
                 <div className="w-7 h-7 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
               ) : (
@@ -126,7 +126,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               or click to browse · CSV only
             </p>
-            <div className="mt-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100">
+            <div className="mt-4 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>
               <FileText className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Chase, BofA, Wells Fargo, and more</span>
             </div>
@@ -134,7 +134,7 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           </div>
 
           {error && (
-            <div className="mt-4 flex items-start gap-2 rounded-xl px-4 py-3 text-sm font-medium animate-fade-in bg-red-50 border border-red-100" style={{ color: 'var(--danger)' }}>
+            <div className="mt-4 flex items-start gap-2 rounded-xl px-4 py-3 text-sm font-medium animate-fade-in" style={{ background: 'var(--danger-light)', border: '1px solid rgba(244,63,94,0.25)', color: 'var(--danger)' }}>
               <span className="mt-0.5 flex-shrink-0">⚠</span>
               {error}
             </div>
@@ -146,10 +146,10 @@ export default function UploadZone({ onFileSelected, loading, hideBrand, compact
           {FEATURES.map(({ icon: Icon, title, desc }, i) => (
             <div
               key={title}
-              className="flex items-start gap-3 rounded-xl p-4 bg-white border border-slate-200/80 transition-all duration-200 hover:border-slate-300 hover:shadow-sm"
-              style={{ animationDelay: `${0.35 + i * 0.06}s` }}
+              className="flex items-start gap-3 rounded-xl p-4 transition-all duration-200"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', animationDelay: `${0.35 + i * 0.06}s` }}
             >
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100" style={{ color: 'var(--accent)' }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>
                 <Icon className="w-4 h-4" strokeWidth={2} />
               </div>
               <div className="min-w-0">

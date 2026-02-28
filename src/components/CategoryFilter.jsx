@@ -64,7 +64,7 @@ export default function CategoryFilter({ transactions, active, onChange, customC
                 <button
                   type="button"
                   onClick={() => { setCreating(false); setDraft('') }}
-                  className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-slate-100"
+                  className="text-xs px-2 py-1.5 rounded-lg transition-colors hover:bg-[var(--bg-elevated)]"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   Cancel
@@ -74,7 +74,7 @@ export default function CategoryFilter({ transactions, active, onChange, customC
               <button
                 type="button"
                 onClick={() => { setCreating(true); setDraft('') }}
-                className="text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-slate-50"
+                className="text-xs px-2.5 py-1.5 rounded-lg border transition-colors hover:bg-[var(--bg-elevated)]"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               >
                 + New

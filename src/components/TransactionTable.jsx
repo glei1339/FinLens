@@ -232,7 +232,7 @@ export default function TransactionTable({ transactions, onCategoryChange, onDel
                         <button
                           type="button"
                           onClick={() => onAddRuleFromTransaction(t)}
-                          className="self-start text-xs px-2 py-0.5 rounded border border-dashed transition-colors hover:bg-sky-50"
+                          className="self-start text-xs px-2 py-0.5 rounded border border-dashed transition-colors hover:bg-[var(--accent-light)]"
                           style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
                         >
                           Add rule for this
@@ -248,7 +248,7 @@ export default function TransactionTable({ transactions, onCategoryChange, onDel
                       <button
                         type="button"
                         onClick={() => setTransactionToDelete(t)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-2 rounded-lg transition-colors hover:bg-[var(--danger-light)]" style={{ color: 'var(--text-muted)' }}
                         title="Delete transaction"
                         aria-label="Delete transaction"
                       >

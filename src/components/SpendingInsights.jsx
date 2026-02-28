@@ -138,7 +138,7 @@ export default function SpendingInsights({ transactions, selectedYear, excludedC
   if (!insight || !insight.rows.length) return null
 
   return (
-    <div className="card overflow-hidden mb-6">
+    <div className="card overflow-hidden">
       <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         <h3 className="card-title flex items-center gap-2 text-lg">
           <Lightbulb className="w-5 h-5" style={{ color: 'var(--accent)' }} />

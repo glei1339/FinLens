@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { Upload, Sparkles, FileText, X, LayoutDashboard, List, FolderOpen, Settings, Sliders, Menu } from 'lucide-react'
+import { Upload, Sparkles, FileText, X, LayoutDashboard, List, FolderOpen, Settings, Sliders, Menu, Sun, Moon } from 'lucide-react'
 import UploadZone from './components/UploadZone'
 import SummaryCards from './components/SummaryCards'
 import SpendingChart from './components/SpendingChart'
@@ -7,6 +7,7 @@ import RecentActivity from './components/RecentActivity'
 import YearFilter from './components/YearFilter'
 import SpendingBreakdownSection from './components/SpendingBreakdownSection'
 import SpendingInsights from './components/SpendingInsights'
+import CategoryBreakdown from './components/CategoryBreakdown'
 import TransactionsPage from './components/TransactionsPage'
 import FilesPage from './components/FilesPage'
 import RulesPage from './components/RulesPage'
@@ -106,6 +107,12 @@ export default function App() {
   const [useAIAnalysis, setUseAIAnalysis] = useState(false)
   const [duplicateModal, setDuplicateModal] = useState({ open: false, files: null, duplicateNames: [] })
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('finlens-theme') || 'dark')
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('finlens-theme', theme)
+  }, [theme])
 
   const setOpenaiApiKey = useCallback((key) => {
     setOpenaiApiKeyState(key)
@@ -761,7 +768,7 @@ export default function App() {
             style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)' }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}>
                 <Sparkles className="w-4 h-4" strokeWidth={2.5} />
               </div>
               <span className="font-display font-semibold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>FinLens</span>
@@ -789,7 +796,7 @@ export default function App() {
           style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}>
               <Sparkles className="w-4 h-4" strokeWidth={2.5} />
             </div>
             <span className="font-display font-semibold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>FinLens</span>
@@ -892,7 +899,7 @@ export default function App() {
       >
         <div className="flex items-center justify-between p-5 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--sidebar-accent)', color: '#fff', boxShadow: '0 4px 14px rgba(129, 140, 248, 0.4)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--sidebar-accent)', color: '#fff', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}>
               <Sparkles className="w-5 h-5" strokeWidth={2.5} />
             </div>
             <span className="font-display font-bold text-lg tracking-tight text-white">FinLens</span>
@@ -920,6 +927,18 @@ export default function App() {
           ))}
         </nav>
         <div className="p-3 border-t border-[var(--sidebar-border)]">
+          <button
+            type="button"
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 mb-1"
+            style={{ color: 'var(--sidebar-text)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--sidebar-bg-hover)'; e.currentTarget.style.color = 'var(--sidebar-text-active)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--sidebar-text)' }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
           <ProfileBar
             profiles={profiles}
             activeProfileId={activeId}
@@ -1038,40 +1057,46 @@ export default function App() {
           />
         ) : (
         <>
-        <div className="mb-10 animate-fade-up">
-          <h1 className="section-title">Where your money goes</h1>
-          <p className="section-desc">
-            {activeYear != null ? `Expenses in ${activeYear} broken down by category` : 'All years · expenses broken down by category'}
-          </p>
-        </div>
         <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
 
-        {/* Two-column: Spending Overview + Recent Activity (same height) */}
-        <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-[520px] gap-4 mb-6">
-          <div className="md:col-span-3 md:h-full min-h-0 flex flex-col">
-            <SpendingChart transactions={filteredByYear} activeYear={activeYear} />
-          </div>
-          <div className="md:col-span-2 md:h-full min-h-0 flex flex-col">
-            <RecentActivity
+        {/* Chart + Category Breakdown (left) + Insights & Recent Activity (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-5">
+          <div className="lg:col-span-3 flex flex-col gap-5">
+            <div className="min-h-[360px] flex flex-col">
+              <SpendingChart transactions={filteredByYear} activeYear={activeYear} />
+            </div>
+            <CategoryBreakdown
               transactions={filteredByYear}
+              selectedYear={activeYear}
+              customCategories={customCategories}
               excludedCategories={excludedCategories}
-              onViewAll={() => setView('transactions')}
             />
           </div>
+          <div className="lg:col-span-2 flex flex-col gap-5">
+            <div className="flex-shrink-0">
+              <SpendingInsights
+                transactions={filteredByYear}
+                selectedYear={activeYear}
+                excludedCategories={excludedCategories}
+                customCategories={customCategories}
+              />
+            </div>
+            <div className="flex-1 min-h-0">
+              <RecentActivity
+                transactions={filteredByYear}
+                excludedCategories={excludedCategories}
+                onViewAll={() => setView('transactions')}
+              />
+            </div>
+          </div>
         </div>
-
-        <SpendingInsights
-          transactions={filteredByYear}
-          selectedYear={activeYear}
-          excludedCategories={excludedCategories}
-          customCategories={customCategories}
-        />
 
         <SpendingBreakdownSection
           transactions={filteredByYear}
           selectedYear={activeYear}
           customCategories={customCategories}
           excludedCategories={excludedCategories}
+          hideRankedCategories
         />
         <p className="text-center text-sm mt-14 mb-8 font-medium" style={{ color: 'var(--text-muted)' }}>
           Data stays on your device
