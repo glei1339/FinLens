@@ -408,7 +408,7 @@ const RULES = [
     'dish network', 'directv', 'hulu live', 'youtube tv', 'sling tv', 'fubo tv', 'fubo ',
     'phone bill', 'wireless bill', 'cell phone bill', 'mobile bill', 'internet bill', 'cable bill', 'cable tv', 'internet service',
     // Property / rent software
-    'turbotenant',
+    'turbotenant', 'affordablehousing',
     // Membership fees
     'membership fee',
     // Productivity & software
@@ -627,7 +627,7 @@ const RULES = [
     'usaa home',
     // Appraisal / inspection / property
     'uwm appraisal', 'appraisal direct', 'frontline inspection', 'frontlineo',
-    'affordablehousing', 'bridge ln network', 'outta here llc',
+    'bridge ln network', 'outta here llc',
     // Storage
     'self storage', 'storage unit', 'public storage', 'extra space',
     'life storage', 'cube smart', 'u-haul storage',

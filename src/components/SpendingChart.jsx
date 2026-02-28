@@ -192,8 +192,8 @@ export default function SpendingChart({ transactions, activeYear }) {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-              {/* Quick stats row */}
-              <div className="grid grid-cols-3 gap-3 mt-4">
+              {/* Quick stats row — min-height so Total / Average / Peak always show fully */}
+              <div className="grid grid-cols-3 gap-3 mt-4 min-h-[88px] flex-shrink-0">
                 {[
                   { label: 'Total', value: fmt(monthlyData.reduce((s, d) => s + d.value, 0)) },
                   { label: 'Average', value: fmt(monthlyData.reduce((s, d) => s + d.value, 0) / monthlyData.length) },
@@ -203,8 +203,8 @@ export default function SpendingChart({ transactions, activeYear }) {
                     sub: monthlyData.find((d) => d.value === trendMax)?.label,
                   },
                 ].map(({ label, value, sub }) => (
-                  <div key={label} className="rounded-xl px-4 py-3.5 text-center" style={{ background: 'var(--border-subtle)', border: '1px solid var(--border)' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
+                  <div key={label} className="rounded-xl px-4 py-4 text-center flex flex-col justify-center" style={{ background: 'var(--border-subtle)', border: '1px solid var(--border)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>{label}</p>
                     <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{value}</p>
                     {sub && <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text-secondary)' }}>{sub}</p>}
                   </div>

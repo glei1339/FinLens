@@ -1047,7 +1047,7 @@ export default function App() {
         <SummaryCards transactions={filteredByYear} excludedCategories={excludedCategories} />
 
         {/* Two-column: Spending Overview + Recent Activity (same height) */}
-        <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-[420px] gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 md:grid-rows-[520px] gap-4 mb-6">
           <div className="md:col-span-3 md:h-full min-h-0 flex flex-col">
             <SpendingChart transactions={filteredByYear} activeYear={activeYear} />
           </div>
