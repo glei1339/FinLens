@@ -163,7 +163,7 @@ export default function SpendingInsights({ transactions, selectedYear, excludedC
           Category change: {insight.previousLabel} → {insight.currentLabel}
         </p>
       </div>
-      <div className="divide-y flex-1 min-h-0 overflow-auto" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="divide-y flex-1 min-h-0 overflow-auto" style={{ borderColor: 'var(--separator)' }}>
         {insight.rows.map(({ category, current, previous, change, pctChange }) => {
           const isUp = change > 0
           const isDown = change < 0

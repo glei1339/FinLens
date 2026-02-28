@@ -101,7 +101,7 @@ export default function RecentActivity({ transactions, excludedCategories, onVie
         )}
       </div>
 
-      <div className="divide-y flex-1 min-h-0 overflow-auto" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="divide-y flex-1 min-h-0 overflow-auto" style={{ borderColor: 'var(--separator)' }}>
         {recent.map((t) => (
           <div
             key={t.id}
@@ -133,7 +133,7 @@ export default function RecentActivity({ transactions, excludedCategories, onVie
       </div>
 
       {onViewAll && (
-        <div className="px-6 py-3.5 border-t flex-shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="px-6 py-3.5 border-t flex-shrink-0" style={{ borderColor: 'var(--separator)' }}>
           <button
             type="button"
             onClick={onViewAll}

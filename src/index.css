@@ -53,6 +53,7 @@
     --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.1), 0 8px 24px rgba(99, 102, 241, 0.12);
 
     /* Surfaces for charts & list backgrounds (theme-aware) */
+    --separator: #f1f5f9;
     --bg-subtle: #f1f5f9;
     --chart-tick: #475569;
     --chart-grid: #e2e8f0;
@@ -90,6 +91,7 @@
     --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.3), 0 6px 12px rgba(0, 0, 0, 0.2);
     --shadow-glow: 0 0 0 1px rgba(129, 140, 248, 0.25), 0 8px 24px rgba(129, 140, 248, 0.15);
 
+    --separator: #334155;
     --bg-subtle: #334155;
     --chart-tick: #94a3b8;
     --chart-grid: #475569;

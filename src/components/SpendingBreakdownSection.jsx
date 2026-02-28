@@ -56,7 +56,7 @@ function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
 
   return (
     <div className="card overflow-hidden mb-6">
-      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--separator)' }}>
         <h3 className="card-title flex items-center gap-2 text-lg">
           <Calendar className="w-5 h-5" style={{ color: 'var(--accent)' }} />
           Month by month
@@ -66,7 +66,7 @@ function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
         </p>
       </div>
 
-      <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="divide-y" style={{ borderColor: 'var(--separator)' }}>
         {monthlySpending.map(({ month, label, amount, byCategory }) => {
           const isOpen = openMonths.has(month)
           const cats = Object.entries(byCategory || {}).sort((a, b) => b[1].amount - a[1].amount)
@@ -100,7 +100,7 @@ function MonthlyBreakdown({ monthlySpending, selectedYear, getColor }) {
               {isOpen && cats.length > 0 && (
                 <div className="px-6 pb-4 pt-0">
                   <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                    <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <div className="divide-y" style={{ borderColor: 'var(--separator)' }}>
                       {cats.map(([catName, { amount: catAmt }]) => (
                           <div key={catName} className="flex items-center justify-between gap-4 px-4 py-3">
                             <div className="flex items-center gap-2.5 min-w-0">
